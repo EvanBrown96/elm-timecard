@@ -1,7 +1,8 @@
 module Main exposing (..)
 
 import Html exposing (..)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onInput)
 import Browser
 import Time
 import Time.Extra as Time
@@ -21,23 +22,35 @@ main =
 -- MODEL
 
 type alias Model =
-  { now    : Time.Posix
-  , timers : List Timer.Timer}
+  { now          : Time.Posix
+  , addTimerText : String
+  , timers       : List Timer.Timer
+  }
 
 init : () -> (Model, Cmd Msg)
 init flags =
-  ( Model (Time.millisToPosix 0) [ Timer.Timer "test" (Timer.Stopped 0), Timer.Timer "another" (Timer.Stopped 0) ], Cmd.none )
+  ( Model (Time.millisToPosix 0) "" [ Timer.Timer "test" (Timer.Stopped 0), Timer.Timer "another" (Timer.Stopped 0) ], Cmd.none )
 
 -- UPDATE
 
 type Msg
-  = TimerCommand Int Timer.Msg
+  = AddTimer
+  | UpdateTimerText String
+  | TimerCommand Int Timer.Msg
   | Tick Time.Posix
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
+    AddTimer ->
+      ( Model model.now "" (model.timers ++ [ Timer.Timer model.addTimerText (Timer.Stopped 0) ])
+      , Cmd.none
+      )
+
+    UpdateTimerText text ->
+      ( { model | addTimerText = text }, Cmd.none )
+
     TimerCommand index timer_msg ->
       let start = List.take index model.timers
           end   = List.drop index model.timers
@@ -54,14 +67,14 @@ update msg model =
                       new_time
                     _ -> model.now
             in
-              ( (Model cur_time (start ++ Tuple.first updated :: xs))
+              ( (Model cur_time model.addTimerText (start ++ Tuple.first updated :: xs))
               , Cmd.map (TimerCommand index) (Tuple.second updated)
               )
 
     Tick cur_time ->
       let updated = List.map (Timer.time_set cur_time) model.timers
       in
-        ( (Model cur_time (List.map Tuple.first updated))
+        ( (Model cur_time model.addTimerText (List.map Tuple.first updated))
         , Cmd.batch (List.indexedMap (\i c -> Cmd.map (TimerCommand i) (Tuple.second c)) updated)
         )
 
@@ -77,5 +90,7 @@ subscriptions model =
 view : Model -> Browser.Document Msg
 view model =
   { title = "Elm Timecard"
-  , body = List.indexedMap (\i h -> Html.map (TimerCommand i) (Timer.get_timer_html model.now h)) model.timers
+  , body =
+    ( div [] [ input [ placeholder "Timer Name", value model.addTimerText, onInput UpdateTimerText ] [], button [ onClick AddTimer ] [ text "Add Timer" ]]) ::
+    List.indexedMap (\i h -> Html.map (TimerCommand i) (Timer.get_timer_html model.now h)) model.timers
   }
