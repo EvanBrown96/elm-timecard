@@ -26,7 +26,7 @@ type alias Model =
 
 init : () -> (Model, Cmd Msg)
 init flags =
-  ( Model (Time.millisToPosix 0) [], Cmd.none )
+  ( Model (Time.millisToPosix 0) [ Timer.Stopped 0, Timer.Stopped 0], Cmd.none )
 
 -- UPDATE
 
@@ -47,9 +47,14 @@ update msg model =
             (model, Cmd.none)
 
           x::xs ->
-            let updated = Timer.update_state timer_msg x
+            let updated  = Timer.update_state timer_msg x
+                cur_time =
+                  case timer_msg of
+                    Timer.ImmediateUpdate new_time ->
+                      new_time
+                    _ -> model.now
             in
-              ( (Model model.now (start ++ Tuple.first updated :: xs))
+              ( (Model cur_time (start ++ Tuple.first updated :: xs))
               , Cmd.map (TimerCommand index) (Tuple.second updated)
               )
 
@@ -64,26 +69,13 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-  Time.every 1000 Tick
+  Time.every 50 Tick
 
 
 -- VIEW
 
--- get_timer : Model -> Html Msg
--- get_timer model =
---   div []
---     [ text (String.fromInt (display_time model))
---     , button [ onClick Start ] [ text "Start" ]
---     , button [ onClick Stop ] [text "Stop" ]
---     , button [ onClick Reset ] [text "Reset" ]
---     ]
-
-get_html : Model -> Browser.Document Msg
-get_html model =
-  { title = "Elm Timecard"
-  , body = [] -- get_timer model ]
-  }
-
 view : Model -> Browser.Document Msg
 view model =
-  get_html model
+  { title = "Elm Timecard"
+  , body = List.indexedMap (\i h -> Html.map (TimerCommand i) (Timer.get_timer_html model.now h)) model.timers
+  }

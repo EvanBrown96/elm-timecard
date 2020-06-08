@@ -4,6 +4,8 @@ module Timer exposing (..)
 import Time
 import Time.Extra as Time
 import Task
+import Html exposing (..)
+import Html.Events exposing (..)
 
 -- MODEL
 
@@ -80,3 +82,15 @@ time_set cur_time timer =
 
       _ ->
         ( timer, Cmd.none )
+
+
+-- VIEW
+
+get_timer_html : Time.Posix -> Timer -> Html Msg
+get_timer_html cur_time timer =
+  div []
+    [ text (String.fromInt (display_time cur_time timer))
+    , button [ onClick Start ] [ text "Start" ]
+    , button [ onClick Stop ] [text "Stop" ]
+    , button [ onClick Reset ] [text "Reset" ]
+    ]
