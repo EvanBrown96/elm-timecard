@@ -29,7 +29,7 @@ type alias Model =
 
 init : () -> (Model, Cmd Msg)
 init flags =
-  ( Model (Time.millisToPosix 0) "" [ Timer.Timer "test" (Timer.Stopped 0), Timer.Timer "another" (Timer.Stopped 0) ], Cmd.none )
+  ( Model (Time.millisToPosix 0) "" [], Cmd.none )
 
 -- UPDATE
 

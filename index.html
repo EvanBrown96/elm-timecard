@@ -4452,13 +4452,6 @@ var author$project$Main$Model = F3(
 	function (now, addTimerText, timers) {
 		return {addTimerText: addTimerText, now: now, timers: timers};
 	});
-var author$project$Timer$Stopped = function (a) {
-	return {$: 'Stopped', a: a};
-};
-var author$project$Timer$Timer = F2(
-	function (name, state) {
-		return {name: name, state: state};
-	});
 var elm$core$Basics$False = {$: 'False'};
 var elm$core$Basics$True = {$: 'True'};
 var elm$core$Result$isOk = function (result) {
@@ -4949,17 +4942,7 @@ var author$project$Main$init = function (flags) {
 			author$project$Main$Model,
 			elm$time$Time$millisToPosix(0),
 			'',
-			_List_fromArray(
-				[
-					A2(
-					author$project$Timer$Timer,
-					'test',
-					author$project$Timer$Stopped(0)),
-					A2(
-					author$project$Timer$Timer,
-					'another',
-					author$project$Timer$Stopped(0))
-				])),
+			_List_Nil),
 		elm$core$Platform$Cmd$none);
 };
 var author$project$Main$Tick = function (a) {
@@ -5476,6 +5459,13 @@ var author$project$Main$subscriptions = function (model) {
 var author$project$Main$TimerCommand = F2(
 	function (a, b) {
 		return {$: 'TimerCommand', a: a, b: b};
+	});
+var author$project$Timer$Stopped = function (a) {
+	return {$: 'Stopped', a: a};
+};
+var author$project$Timer$Timer = F2(
+	function (name, state) {
+		return {name: name, state: state};
 	});
 var author$project$Timer$Running = F2(
 	function (a, b) {
