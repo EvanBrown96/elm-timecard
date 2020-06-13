@@ -9,6 +9,7 @@ import Time
 import Time.Extra as Time
 import Task
 import Timer
+import Bootstrap.CDN as CDN
 
 
 main : Program () Model Msg
@@ -104,6 +105,7 @@ view : Model -> Browser.Document Msg
 view model =
   { title = "Elm Timecard"
   , body =
+    CDN.stylesheet ::
     ( div [] [ input [ placeholder "Timer Name", value model.addTimerText, onInput UpdateTimerText ] [], button [ onClick AddTimer ] [ text "Add Timer" ]]) ::
     List.indexedMap (\i h -> Html.map (TimerCommand i) (Timer.get_timer_html model.now h)) model.timers
   }

@@ -6,6 +6,8 @@ import Time.Extra as Time
 import Task
 import Html exposing (..)
 import Html.Events exposing (..)
+import Bootstrap.Card as Card
+import Bootstrap.Card.Block as Block
 
 
 -- MODEL
@@ -110,10 +112,26 @@ time_set cur_time timer =
 
 get_timer_html : Time.Posix -> Timer -> Html Msg
 get_timer_html cur_time timer =
-  div []
-    [ text timer.name
-    , text (display_time cur_time timer)
-    , button [ onClick Start ] [ text "Start" ]
-    , button [ onClick Stop ] [text "Stop" ]
-    , button [ onClick Reset ] [text "Reset" ]
+  Card.group
+    [ Card.config [ Card.light ] |>
+      Card.block []
+        [ Block.custom <|
+            div []
+              [ button [ onClick Start ] [ text "Start" ]
+              , button [ onClick Stop ] [ text "Stop" ]
+              , button [ onClick Reset ] [ text "Reset" ]
+              ]
+        ]
+    , Card.config [ Card.light ] |>
+      Card.block [] [ Block.text [] [ text timer.name ] ]
+    , Card.config [ Card.light ] |>
+      Card.block [] [ Block.text [] [ text (display_time cur_time timer) ] ]
     ]
+
+  -- div []
+  --   [ text timer.name
+  --   , text (display_time cur_time timer)
+  --   , button [ onClick Start ] [ text "Start" ]
+  --   , button [ onClick Stop ] [text "Stop" ]
+  --   , button [ onClick Reset ] [text "Reset" ]
+  --   ]
