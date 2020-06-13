@@ -7,17 +7,18 @@ import Task
 import Html exposing (..)
 import Html.Events exposing (..)
 
+
 -- MODEL
 
 type alias Millis = Int
 
 type alias Timer =
-  { name : String
+  { name  : String
   , state : TimerState
   }
 
-type TimerState
-  = Stopped Millis
+type TimerState =
+    Stopped Millis
   | Starting Millis
   | Running  Millis Time.Posix
   | Stopping Millis Time.Posix
@@ -28,7 +29,7 @@ updated_time cur_time start offset =
 
 display_time : Time.Posix -> Timer -> String
 display_time cur_time timer =
-  millisToString (
+  millisToString <|
     case timer.state of
       Stopped interval ->
         interval
@@ -38,24 +39,25 @@ display_time cur_time timer =
         updated_time cur_time start interval
       Stopping interval start ->
         updated_time cur_time start interval
-  )
 
 millisToString : Millis -> String
 millisToString millis =
-  let hours   = millis // 3600000
-      minutes = (modBy 3600000 millis) // 60000
-      seconds = (modBy 60000 millis) // 1000
-      centis  = (modBy 1000 millis) // 10
+  let
+    hours   = millis // 3600000
+    minutes = (modBy 3600000 millis) // 60000
+    seconds = (modBy 60000 millis) // 1000
+    centis  = (modBy 1000 millis) // 10
+    padZero = String.padLeft 2 '0'
   in
     String.fromInt hours
-    ++ ":" ++ (String.fromInt minutes |> String.padLeft 2 '0')
-    ++ ":" ++ (String.fromInt seconds |> String.padLeft 2 '0')
-    ++ ":" ++ (String.fromInt centis  |> String.padLeft 2 '0')
+    ++ ":" ++ (String.fromInt minutes |> padZero)
+    ++ ":" ++ (String.fromInt seconds |> padZero)
+    ++ "." ++ (String.fromInt centis  |> padZero)
 
 -- UPDATE
 
-type Msg
-  = Start
+type Msg =
+    Start
   | Stop
   | Reset
   | ImmediateUpdate Time.Posix
@@ -96,7 +98,9 @@ time_set cur_time timer =
         ( { timer | state = Running interval cur_time }, Cmd.none )
 
       Stopping interval start ->
-        ( { timer | state = Stopped (updated_time cur_time start interval) }, Cmd.none )
+        ( { timer | state = Stopped (updated_time cur_time start interval) }
+        , Cmd.none
+        )
 
       _ ->
         ( timer, Cmd.none )

@@ -6436,19 +6436,20 @@ var author$project$Main$update = F2(
 		switch (msg.$) {
 			case 'AddTimer':
 				return _Utils_Tuple2(
-					A3(
-						author$project$Main$Model,
-						model.now,
-						'',
-						_Utils_ap(
-							model.timers,
-							_List_fromArray(
-								[
-									A2(
-									author$project$Timer$Timer,
-									model.addTimerText,
-									author$project$Timer$Stopped(0))
-								]))),
+					_Utils_update(
+						model,
+						{
+							addTimerText: '',
+							timers: _Utils_ap(
+								model.timers,
+								_List_fromArray(
+									[
+										A2(
+										author$project$Timer$Timer,
+										model.addTimerText,
+										author$project$Timer$Stopped(0))
+									]))
+						}),
 					elm$core$Platform$Cmd$none);
 			case 'UpdateTimerText':
 				var text = msg.a;
@@ -6551,21 +6552,16 @@ var elm$core$String$padLeft = F3(
 	});
 var author$project$Timer$millisToString = function (millis) {
 	var seconds = (A2(elm$core$Basics$modBy, 60000, millis) / 1000) | 0;
+	var padZero = A2(
+		elm$core$String$padLeft,
+		2,
+		_Utils_chr('0'));
 	var minutes = (A2(elm$core$Basics$modBy, 3600000, millis) / 60000) | 0;
 	var hours = (millis / 3600000) | 0;
 	var centis = (A2(elm$core$Basics$modBy, 1000, millis) / 10) | 0;
-	return elm$core$String$fromInt(hours) + (':' + (A3(
-		elm$core$String$padLeft,
-		2,
-		_Utils_chr('0'),
-		elm$core$String$fromInt(minutes)) + (':' + (A3(
-		elm$core$String$padLeft,
-		2,
-		_Utils_chr('0'),
-		elm$core$String$fromInt(seconds)) + (':' + A3(
-		elm$core$String$padLeft,
-		2,
-		_Utils_chr('0'),
+	return elm$core$String$fromInt(hours) + (':' + (padZero(
+		elm$core$String$fromInt(minutes)) + (':' + (padZero(
+		elm$core$String$fromInt(seconds)) + ('.' + padZero(
 		elm$core$String$fromInt(centis)))))));
 };
 var author$project$Timer$display_time = F2(
