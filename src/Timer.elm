@@ -113,25 +113,17 @@ time_set cur_time timer =
 get_timer_html : Time.Posix -> Timer -> Html Msg
 get_timer_html cur_time timer =
   Card.group
-    [ Card.config [ Card.light ] |>
-      Card.block []
-        [ Block.custom <|
-            div []
-              [ button [ onClick Start ] [ text "Start" ]
-              , button [ onClick Stop ] [ text "Stop" ]
-              , button [ onClick Reset ] [ text "Reset" ]
-              ]
-        ]
-    , Card.config [ Card.light ] |>
-      Card.block [] [ Block.text [] [ text timer.name ] ]
-    , Card.config [ Card.light ] |>
-      Card.block [] [ Block.text [] [ text (display_time cur_time timer) ] ]
+    [ Card.config [ Card.light ]
+      |> Card.block []
+          [ Block.custom <|
+              div []
+                [ button [ onClick Start ] [ text "Start" ]
+                , button [ onClick Stop ] [ text "Stop" ]
+                , button [ onClick Reset ] [ text "Reset" ]
+                ]
+          ]
+    , Card.config [ Card.light ]
+      |> Card.block [] [ Block.text [] [ text timer.name ] ]
+    , Card.config [ Card.light ]
+      |> Card.block [] [ Block.text [] [ text <| display_time cur_time timer ] ]
     ]
-
-  -- div []
-  --   [ text timer.name
-  --   , text (display_time cur_time timer)
-  --   , button [ onClick Start ] [ text "Start" ]
-  --   , button [ onClick Stop ] [text "Stop" ]
-  --   , button [ onClick Reset ] [text "Reset" ]
-  --   ]
