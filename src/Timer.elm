@@ -123,7 +123,7 @@ get_timer_html cur_time timer =
                 ]
           ]
     , Card.config [ Card.light ]
-      |> Card.block [] [ Block.text [] [ text timer.name ] ]
+      |> Card.block [] [ Block.titleH4 [] [ text timer.name ] ]
     , Card.config [ Card.light ]
       |> Card.block [] [ Block.text [] [ text <| display_time cur_time timer ] ]
     ]
