@@ -5459,7 +5459,6 @@ var elm$time$Time$every = F2(
 var author$project$Main$subscriptions = function (model) {
 	return A2(elm$time$Time$every, 50, author$project$Main$Tick);
 };
-var author$project$Main$HideAddModal = {$: 'HideAddModal'};
 var author$project$Main$TimerCommand = F2(
 	function (a, b) {
 		return {$: 'TimerCommand', a: a, b: b};
@@ -6445,6 +6444,8 @@ var author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{
+							addModalVisible: rundis$elm_bootstrap$Bootstrap$Modal$hidden,
+							addTimerText: '',
 							timers: _Utils_ap(
 								model.timers,
 								_List_fromArray(
@@ -6455,12 +6456,7 @@ var author$project$Main$update = F2(
 										author$project$Timer$Stopped(0))
 									]))
 						}),
-					A2(
-						elm$core$Task$perform,
-						function (_n1) {
-							return author$project$Main$HideAddModal;
-						},
-						elm$core$Task$succeed(0)));
+					elm$core$Platform$Cmd$none);
 			case 'UpdateTimerText':
 				var text = msg.a;
 				return _Utils_Tuple2(
@@ -6540,6 +6536,7 @@ var author$project$Main$update = F2(
 		}
 	});
 var author$project$Main$AddTimer = {$: 'AddTimer'};
+var author$project$Main$HideAddModal = {$: 'HideAddModal'};
 var author$project$Main$UpdateTimerText = function (a) {
 	return {$: 'UpdateTimerText', a: a};
 };
@@ -8382,6 +8379,9 @@ var rundis$elm_bootstrap$Bootstrap$Card$Internal$Roled = function (a) {
 var rundis$elm_bootstrap$Bootstrap$Internal$Role$Light = {$: 'Light'};
 var rundis$elm_bootstrap$Bootstrap$Card$light = rundis$elm_bootstrap$Bootstrap$Card$Internal$Coloring(
 	rundis$elm_bootstrap$Bootstrap$Card$Internal$Roled(rundis$elm_bootstrap$Bootstrap$Internal$Role$Light));
+var rundis$elm_bootstrap$Bootstrap$Internal$Role$Secondary = {$: 'Secondary'};
+var rundis$elm_bootstrap$Bootstrap$Card$secondary = rundis$elm_bootstrap$Bootstrap$Card$Internal$Coloring(
+	rundis$elm_bootstrap$Bootstrap$Card$Internal$Roled(rundis$elm_bootstrap$Bootstrap$Internal$Role$Secondary));
 var rundis$elm_bootstrap$Bootstrap$Card$Internal$BlockItem = function (a) {
 	return {$: 'BlockItem', a: a};
 };
@@ -8431,41 +8431,60 @@ var author$project$Timer$get_timer_html = F2(
 								_List_Nil,
 								_List_fromArray(
 									[
-										A2(
-										elm$html$Html$button,
-										_List_fromArray(
-											[
-												elm$html$Html$Events$onClick(author$project$Timer$Start)
-											]),
-										_List_fromArray(
-											[
-												elm$html$Html$text('Start')
-											])),
-										A2(
-										elm$html$Html$button,
-										_List_fromArray(
-											[
-												elm$html$Html$Events$onClick(author$project$Timer$Stop)
-											]),
-										_List_fromArray(
-											[
-												elm$html$Html$text('Stop')
-											])),
-										A2(
-										elm$html$Html$button,
-										_List_fromArray(
-											[
-												elm$html$Html$Events$onClick(author$project$Timer$Reset)
-											]),
-										_List_fromArray(
-											[
-												elm$html$Html$text('Reset')
-											]))
+										function () {
+										var _n0 = timer.state;
+										switch (_n0.$) {
+											case 'Stopped':
+												return A2(
+													elm$html$Html$button,
+													_List_fromArray(
+														[
+															elm$html$Html$Events$onClick(author$project$Timer$Start)
+														]),
+													_List_fromArray(
+														[
+															elm$html$Html$text('Start')
+														]));
+											case 'Starting':
+												return A2(
+													elm$html$Html$button,
+													_List_fromArray(
+														[
+															elm$html$Html$Events$onClick(author$project$Timer$Start)
+														]),
+													_List_fromArray(
+														[
+															elm$html$Html$text('Start')
+														]));
+											case 'Running':
+												return A2(
+													elm$html$Html$button,
+													_List_fromArray(
+														[
+															elm$html$Html$Events$onClick(author$project$Timer$Stop)
+														]),
+													_List_fromArray(
+														[
+															elm$html$Html$text('Stop')
+														]));
+											default:
+												return A2(
+													elm$html$Html$button,
+													_List_fromArray(
+														[
+															elm$html$Html$Events$onClick(author$project$Timer$Stop)
+														]),
+													_List_fromArray(
+														[
+															elm$html$Html$text('Stop')
+														]));
+										}
+									}()
 									])))
 						]),
 					rundis$elm_bootstrap$Bootstrap$Card$config(
 						_List_fromArray(
-							[rundis$elm_bootstrap$Bootstrap$Card$light]))),
+							[rundis$elm_bootstrap$Bootstrap$Card$secondary]))),
 					A3(
 					rundis$elm_bootstrap$Bootstrap$Card$block,
 					_List_Nil,
@@ -8498,7 +8517,33 @@ var author$project$Timer$get_timer_html = F2(
 						]),
 					rundis$elm_bootstrap$Bootstrap$Card$config(
 						_List_fromArray(
-							[rundis$elm_bootstrap$Bootstrap$Card$light])))
+							[rundis$elm_bootstrap$Bootstrap$Card$light]))),
+					A3(
+					rundis$elm_bootstrap$Bootstrap$Card$block,
+					_List_Nil,
+					_List_fromArray(
+						[
+							rundis$elm_bootstrap$Bootstrap$Card$Block$custom(
+							A2(
+								elm$html$Html$div,
+								_List_Nil,
+								_List_fromArray(
+									[
+										A2(
+										elm$html$Html$button,
+										_List_fromArray(
+											[
+												elm$html$Html$Events$onClick(author$project$Timer$Reset)
+											]),
+										_List_fromArray(
+											[
+												elm$html$Html$text('Reset')
+											]))
+									])))
+						]),
+					rundis$elm_bootstrap$Bootstrap$Card$config(
+						_List_fromArray(
+							[rundis$elm_bootstrap$Bootstrap$Card$secondary])))
 				]));
 	});
 var elm$virtual_dom$VirtualDom$map = _VirtualDom_map;
