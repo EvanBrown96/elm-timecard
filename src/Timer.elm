@@ -1,23 +1,20 @@
-module Timer exposing (..)
+module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState)
 
 
 import Time
 import Time.Extra as Time
 import Task
-import Html exposing (..)
-import Html.Events exposing (..)
-import Bootstrap.Card as Card
-import Bootstrap.Card.Block as Block
 
 
 -- MODEL
 
 type alias Millis = Int
 
-type alias Timer =
-  { name  : String
-  , state : TimerState
-  }
+type Timer =
+  Timer TimerState
+
+newTimer : Timer
+newTimer = Timer <| Stopped 0
 
 type TimerState =
     Stopped Millis
@@ -25,22 +22,94 @@ type TimerState =
   | Running  Millis Time.Posix
   | Stopping Millis Time.Posix
 
-updated_time : Time.Posix -> Time.Posix -> Millis -> Millis
-updated_time cur_time start offset =
+
+-- UPDATE
+
+type Msg =
+    Start
+  | Stop
+  | Reset
+  | Update Time.Posix
+
+updateState : Msg -> Timer -> (Timer, Cmd Msg)
+updateState msg timer =
+  case msg of
+      Start ->
+        case timer of
+
+          Timer (Stopped interval) ->
+            ( Timer (Starting interval)
+            , Task.perform Update Time.now
+            )
+
+          _ ->
+            ( timer, Cmd.none )
+
+      Stop ->
+        case timer of
+          Timer (Running interval start) ->
+            ( Timer (Stopping interval start)
+            , Task.perform Update Time.now
+            )
+
+          _ ->
+            ( timer, Cmd.none )
+
+      Reset ->
+        ( Timer (Stopped 0), Cmd.none )
+
+      Update cur_time ->
+        timeSet cur_time timer
+
+timeSet : Time.Posix -> Timer -> (Timer, Cmd Msg)
+timeSet cur_time timer =
+    case timer of
+      Timer state ->
+        case state of
+          Starting interval ->
+            ( Timer (Running interval cur_time), Cmd.none )
+
+          Stopping interval start ->
+            ( Timer (Stopped (updatedTime cur_time start interval))
+            , Cmd.none
+            )
+
+          _ ->
+            ( timer, Cmd.none )
+
+
+-- HELPERS
+
+isRunning : Timer -> Bool
+isRunning timer =
+  case timer of
+    Timer state ->
+      case state of
+        Stopped _ ->
+          False
+        Starting _ ->
+          False
+        _ ->
+          True
+
+updatedTime : Time.Posix -> Time.Posix -> Millis -> Millis
+updatedTime cur_time start offset =
   offset + Time.diff Time.Millisecond Time.utc start cur_time
 
-display_time : Time.Posix -> Timer -> String
-display_time cur_time timer =
+displayTime : Time.Posix -> Timer -> String
+displayTime cur_time timer =
   millisToString <|
-    case timer.state of
-      Stopped interval ->
-        interval
-      Starting interval ->
-        interval
-      Running interval start ->
-        updated_time cur_time start interval
-      Stopping interval start ->
-        updated_time cur_time start interval
+    case timer of
+      Timer state ->
+        case state of
+          Stopped interval ->
+            interval
+          Starting interval ->
+            interval
+          Running interval start ->
+            updatedTime cur_time start interval
+          Stopping interval start ->
+            updatedTime cur_time start interval
 
 millisToString : Millis -> String
 millisToString millis =
@@ -55,86 +124,3 @@ millisToString millis =
     ++ ":" ++ (String.fromInt minutes |> padZero)
     ++ ":" ++ (String.fromInt seconds |> padZero)
     ++ "." ++ (String.fromInt centis  |> padZero)
-
--- UPDATE
-
-type Msg =
-    Start
-  | Stop
-  | Reset
-  | ImmediateUpdate Time.Posix
-
-update_state : Msg -> Timer -> (Timer, Cmd Msg)
-update_state msg timer =
-  case msg of
-      Start ->
-        case timer.state of
-          Stopped interval ->
-            ( { timer | state = Starting interval }
-            , Task.perform ImmediateUpdate Time.now
-            )
-
-          _ ->
-            ( timer, Cmd.none )
-
-      Stop ->
-        case timer.state of
-          Running interval start ->
-            ( { timer | state = Stopping interval start }
-            , Task.perform ImmediateUpdate Time.now
-            )
-
-          _ ->
-            ( timer, Cmd.none )
-
-      Reset ->
-        ( { timer | state = Stopped 0 }, Cmd.none )
-
-      ImmediateUpdate cur_time ->
-        time_set cur_time timer
-
-time_set : Time.Posix -> Timer -> (Timer, Cmd Msg)
-time_set cur_time timer =
-    case timer.state of
-      Starting interval ->
-        ( { timer | state = Running interval cur_time }, Cmd.none )
-
-      Stopping interval start ->
-        ( { timer | state = Stopped (updated_time cur_time start interval) }
-        , Cmd.none
-        )
-
-      _ ->
-        ( timer, Cmd.none )
-
-
--- VIEW
-
-get_timer_html : Time.Posix -> Timer -> Html Msg
-get_timer_html cur_time timer =
-  Card.group
-    [ Card.config [ Card.secondary ]
-      |> Card.block []
-          [ Block.custom <|
-              div []
-                [ case timer.state of
-                    Stopped _ ->
-                      button [ onClick Start ] [ text "Start" ]
-                    Starting _ ->
-                      button [ onClick Start ] [ text "Start" ]
-                    Running _ _ ->
-                      button [ onClick Stop ] [ text "Stop" ]
-                    Stopping _ _ ->
-                      button [ onClick Stop ] [ text "Stop" ]
-                ]
-          ]
-    , Card.config [ Card.light ]
-      |> Card.block [] [ Block.titleH4 [] [ text timer.name ] ]
-    , Card.config [ Card.light ]
-      |> Card.block [] [ Block.text [] [ text <| display_time cur_time timer ] ]
-    , Card.config [ Card.secondary ]
-      |> Card.block []
-          [ Block.custom <|
-              div [] [ button [ onClick Reset ] [ text "Reset" ] ]
-          ]
-    ]

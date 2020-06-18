@@ -8,7 +8,8 @@ import Browser
 import Time
 import Time.Extra as Time
 import Task
-import Timer
+import Timer exposing (Timer)
+import SimpleTimer exposing (SimpleTimer)
 import Bootstrap.CDN as CDN
 import Bootstrap.Grid as Grid
 import Bootstrap.Grid.Row as Row
@@ -33,7 +34,7 @@ type alias Model =
   { now             : Time.Posix
   , addModalVisible : Modal.Visibility
   , addTimerText    : String
-  , timers          : List Timer.Timer
+  , timers          : List SimpleTimer
   }
 
 init : () -> (Model, Cmd Msg)
@@ -59,7 +60,7 @@ update msg model =
     AddTimer ->
       ( { model | addModalVisible = Modal.hidden
                 , addTimerText    = ""
-                , timers          = model.timers ++ [ Timer.Timer model.addTimerText (Timer.Stopped 0) ]
+                , timers          = model.timers ++ [ SimpleTimer model.addTimerText (Timer.newTimer) ]
         }
       , Cmd.none
       )
@@ -78,10 +79,10 @@ update msg model =
 
           x::xs ->
             let
-              updated  = Timer.update_state timer_msg x
+              updated  = SimpleTimer.updateState timer_msg x
               cur_time =
                 case timer_msg of
-                  Timer.ImmediateUpdate new_time ->
+                  Timer.Update new_time ->
                     new_time
                   _ ->
                     model.now
@@ -94,7 +95,7 @@ update msg model =
 
     Tick cur_time ->
       let
-        updated = List.map (Timer.time_set cur_time) model.timers
+        updated = List.map (SimpleTimer.updateState (Timer.Update cur_time)) model.timers
       in
         ( { model | now    = cur_time
                   , timers = (List.map Tuple.first updated)
@@ -150,9 +151,9 @@ buttonsRow =
         [ button [ onClick ShowAddModal ] [ text "Add Timer" ] ]
     ]
 
-timerToRow : Time.Posix -> Int -> Timer.Timer -> Html Msg
+timerToRow : Time.Posix -> Int -> SimpleTimer -> Html Msg
 timerToRow now index timer =
   Grid.row [ Row.attrs [ Spacing.m2 ] ]
     [ Grid.col []
-        [ Html.map (TimerCommand index) (Timer.get_timer_html now timer) ]
+        [ Html.map (TimerCommand index) (SimpleTimer.getHtml now timer) ]
     ]
