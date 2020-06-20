@@ -6456,6 +6456,23 @@ var author$project$Timer$forwardToIndex = F4(
 			return _Utils_Tuple2(timers, elm$core$Platform$Cmd$none);
 		}
 	});
+var elm$core$List$unzip = function (pairs) {
+	var step = F2(
+		function (_n0, _n1) {
+			var x = _n0.a;
+			var y = _n0.b;
+			var xs = _n1.a;
+			var ys = _n1.b;
+			return _Utils_Tuple2(
+				A2(elm$core$List$cons, x, xs),
+				A2(elm$core$List$cons, y, ys));
+		});
+	return A3(
+		elm$core$List$foldr,
+		step,
+		_Utils_Tuple2(_List_Nil, _List_Nil),
+		pairs);
+};
 var elm$core$Tuple$mapFirst = F2(
 	function (func, _n0) {
 		var x = _n0.a;
@@ -6512,29 +6529,26 @@ var author$project$Main$update = F2(
 					A4(author$project$Timer$forwardToIndex, author$project$Main$TimerCommand, model.timers, index, timer_msg));
 			case 'Tick':
 				var cur_time = msg.a;
-				var updated = A2(
-					elm$core$List$map,
-					author$project$Timer$updateState(
-						author$project$Timer$Update(cur_time)),
-					model.timers);
+				var _n2 = elm$core$List$unzip(
+					A2(
+						elm$core$List$map,
+						author$project$Timer$updateState(
+							author$project$Timer$Update(cur_time)),
+						model.timers));
+				var updated_timers = _n2.a;
+				var cmds = _n2.b;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{
-							now: cur_time,
-							timers: A2(elm$core$List$map, elm$core$Tuple$first, updated)
-						}),
+						{now: cur_time, timers: updated_timers}),
 					elm$core$Platform$Cmd$batch(
 						A2(
 							elm$core$List$indexedMap,
-							F2(
-								function (i, c) {
-									return A2(
-										elm$core$Platform$Cmd$map,
-										author$project$Main$TimerCommand(i),
-										c.b);
-								}),
-							updated)));
+							function (i) {
+								return elm$core$Platform$Cmd$map(
+									author$project$Main$TimerCommand(i));
+							},
+							cmds)));
 			case 'ShowAddModal':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -8074,7 +8088,7 @@ var author$project$Timer$isRunning = function (timer) {
 	switch (_n0.$) {
 		case 'Stopped':
 			return false;
-		case 'Starting':
+		case 'Stopping':
 			return false;
 		default:
 			return true;

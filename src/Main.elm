@@ -82,13 +82,14 @@ update msg model =
 
     Tick cur_time ->
       let
-        updated = List.map (Timer.updateState (Timer.Update cur_time)) model.timers
+        (updated_timers, cmds) = List.map (Timer.updateState (Timer.Update cur_time)) model.timers
+                                 |> List.unzip
       in
         ( { model | now    = cur_time
-                  , timers = (List.map Tuple.first updated)
+                  , timers = updated_timers
           }
-        , updated
-            |> List.indexedMap (\i c -> Cmd.map (TimerCommand i) (Tuple.second c))
+        , cmds
+            |> List.indexedMap (\i -> Cmd.map (TimerCommand i))
             |> Cmd.batch
         )
 

@@ -85,7 +85,7 @@ isRunning timer =
   case timer.state of
     Stopped _ ->
       False
-    Starting _ ->
+    Stopping _ _ ->
       False
     _ ->
       True
