@@ -51,7 +51,7 @@ type Msg =
   | ShowAddModal
   | HideAddModal
   | UpdateTimerText String
-  | TimerCommand Int Timer.Msg
+  | TimerCommand Int SimpleTimer.Msg
   | Tick Time.Posix
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -60,7 +60,7 @@ update msg model =
     AddTimer ->
       ( { model | addModalVisible = Modal.hidden
                 , addTimerText    = ""
-                , timers          = model.timers ++ [ SimpleTimer model.addTimerText (Timer.newTimer) ]
+                , timers          = model.timers ++ [ Timer.newTimer model.addTimerText ]
         }
       , Cmd.none
       )
@@ -70,32 +70,19 @@ update msg model =
 
     TimerCommand index timer_msg ->
       let
-        start = List.take index model.timers
-        end   = List.drop index model.timers
+        cur_time =
+          case timer_msg of
+            Timer.Update new_time ->
+              new_time
+            _ ->
+              model.now
       in
-        case end of
-          [] ->
-            (model, Cmd.none)
-
-          x::xs ->
-            let
-              updated  = SimpleTimer.updateState timer_msg x
-              cur_time =
-                case timer_msg of
-                  Timer.Update new_time ->
-                    new_time
-                  _ ->
-                    model.now
-            in
-              ( { model | now    = cur_time
-                        , timers = (start ++ Tuple.first updated :: xs)
-                }
-              , Cmd.map (TimerCommand index) (Tuple.second updated)
-              )
+        Timer.forwardToIndex TimerCommand model.timers index timer_msg
+        |> Tuple.mapFirst (\timers -> { model | now = cur_time, timers = timers })
 
     Tick cur_time ->
       let
-        updated = List.map (SimpleTimer.updateState (Timer.Update cur_time)) model.timers
+        updated = List.map (Timer.updateState (Timer.Update cur_time)) model.timers
       in
         ( { model | now    = cur_time
                   , timers = (List.map Tuple.first updated)

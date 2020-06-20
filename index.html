@@ -5463,25 +5463,28 @@ var author$project$Main$TimerCommand = F2(
 	function (a, b) {
 		return {$: 'TimerCommand', a: a, b: b};
 	});
-var author$project$SimpleTimer$SimpleTimer = F2(
-	function (name, timer) {
-		return {name: name, timer: timer};
-	});
+var author$project$Timer$Update = function (a) {
+	return {$: 'Update', a: a};
+};
 var author$project$Timer$Starting = function (a) {
 	return {$: 'Starting', a: a};
-};
-var author$project$Timer$Stopped = function (a) {
-	return {$: 'Stopped', a: a};
 };
 var author$project$Timer$Stopping = F2(
 	function (a, b) {
 		return {$: 'Stopping', a: a, b: b};
 	});
-var author$project$Timer$Timer = function (a) {
-	return {$: 'Timer', a: a};
+var author$project$Timer$Stopped = function (a) {
+	return {$: 'Stopped', a: a};
 };
-var author$project$Timer$Update = function (a) {
-	return {$: 'Update', a: a};
+var author$project$Timer$Timer = F2(
+	function (name, state) {
+		return {name: name, state: state};
+	});
+var author$project$Timer$newTimer = function (name) {
+	return A2(
+		author$project$Timer$Timer,
+		name,
+		author$project$Timer$Stopped(0));
 };
 var author$project$Timer$Running = F2(
 	function (a, b) {
@@ -6160,21 +6163,27 @@ var author$project$Timer$updatedTime = F3(
 	});
 var author$project$Timer$timeSet = F2(
 	function (cur_time, timer) {
-		var state = timer.a;
-		switch (state.$) {
+		var _n0 = timer.state;
+		switch (_n0.$) {
 			case 'Starting':
-				var interval = state.a;
+				var interval = _n0.a;
 				return _Utils_Tuple2(
-					author$project$Timer$Timer(
-						A2(author$project$Timer$Running, interval, cur_time)),
+					_Utils_update(
+						timer,
+						{
+							state: A2(author$project$Timer$Running, interval, cur_time)
+						}),
 					elm$core$Platform$Cmd$none);
 			case 'Stopping':
-				var interval = state.a;
-				var start = state.b;
+				var interval = _n0.a;
+				var start = _n0.b;
 				return _Utils_Tuple2(
-					author$project$Timer$Timer(
-						author$project$Timer$Stopped(
-							A3(author$project$Timer$updatedTime, cur_time, start, interval))),
+					_Utils_update(
+						timer,
+						{
+							state: author$project$Timer$Stopped(
+								A3(author$project$Timer$updatedTime, cur_time, start, interval))
+						}),
 					elm$core$Platform$Cmd$none);
 			default:
 				return _Utils_Tuple2(timer, elm$core$Platform$Cmd$none);
@@ -6238,58 +6247,43 @@ var author$project$Timer$updateState = F2(
 	function (msg, timer) {
 		switch (msg.$) {
 			case 'Start':
-				if (timer.a.$ === 'Stopped') {
-					var interval = timer.a.a;
+				var _n1 = timer.state;
+				if (_n1.$ === 'Stopped') {
+					var interval = _n1.a;
 					return _Utils_Tuple2(
-						author$project$Timer$Timer(
-							author$project$Timer$Starting(interval)),
+						_Utils_update(
+							timer,
+							{
+								state: author$project$Timer$Starting(interval)
+							}),
 						A2(elm$core$Task$perform, author$project$Timer$Update, elm$time$Time$now));
 				} else {
 					return _Utils_Tuple2(timer, elm$core$Platform$Cmd$none);
 				}
 			case 'Stop':
-				if (timer.a.$ === 'Running') {
-					var _n3 = timer.a;
-					var interval = _n3.a;
-					var start = _n3.b;
+				var _n2 = timer.state;
+				if (_n2.$ === 'Running') {
+					var interval = _n2.a;
+					var start = _n2.b;
 					return _Utils_Tuple2(
-						author$project$Timer$Timer(
-							A2(author$project$Timer$Stopping, interval, start)),
+						_Utils_update(
+							timer,
+							{
+								state: A2(author$project$Timer$Stopping, interval, start)
+							}),
 						A2(elm$core$Task$perform, author$project$Timer$Update, elm$time$Time$now));
 				} else {
 					return _Utils_Tuple2(timer, elm$core$Platform$Cmd$none);
 				}
 			case 'Reset':
 				return _Utils_Tuple2(
-					author$project$Timer$Timer(
-						author$project$Timer$Stopped(0)),
+					author$project$Timer$newTimer(timer.name),
 					elm$core$Platform$Cmd$none);
 			default:
 				var cur_time = msg.a;
 				return A2(author$project$Timer$timeSet, cur_time, timer);
 		}
 	});
-var elm$core$Tuple$mapFirst = F2(
-	function (func, _n0) {
-		var x = _n0.a;
-		var y = _n0.b;
-		return _Utils_Tuple2(
-			func(x),
-			y);
-	});
-var author$project$SimpleTimer$updateState = F2(
-	function (msg, timer) {
-		return A2(
-			elm$core$Tuple$mapFirst,
-			function (t) {
-				return _Utils_update(
-					timer,
-					{timer: t});
-			},
-			A2(author$project$Timer$updateState, msg, timer.timer));
-	});
-var author$project$Timer$newTimer = author$project$Timer$Timer(
-	author$project$Timer$Stopped(0));
 var elm$core$List$drop = F2(
 	function (n, list) {
 		drop:
@@ -6442,6 +6436,34 @@ var elm$core$Tuple$second = function (_n0) {
 	var y = _n0.b;
 	return y;
 };
+var author$project$Timer$forwardToIndex = F4(
+	function (parentConstructor, timers, index, msg) {
+		var start = A2(elm$core$List$take, index, timers);
+		var end = A2(elm$core$List$drop, index, timers);
+		if (end.b) {
+			var x = end.a;
+			var xs = end.b;
+			var updated = A2(author$project$Timer$updateState, msg, x);
+			return _Utils_Tuple2(
+				_Utils_ap(
+					start,
+					A2(elm$core$List$cons, updated.a, xs)),
+				A2(
+					elm$core$Platform$Cmd$map,
+					parentConstructor(index),
+					updated.b));
+		} else {
+			return _Utils_Tuple2(timers, elm$core$Platform$Cmd$none);
+		}
+	});
+var elm$core$Tuple$mapFirst = F2(
+	function (func, _n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return _Utils_Tuple2(
+			func(x),
+			y);
+	});
 var rundis$elm_bootstrap$Bootstrap$Modal$Show = {$: 'Show'};
 var rundis$elm_bootstrap$Bootstrap$Modal$shown = rundis$elm_bootstrap$Bootstrap$Modal$Show;
 var author$project$Main$update = F2(
@@ -6458,7 +6480,7 @@ var author$project$Main$update = F2(
 								model.timers,
 								_List_fromArray(
 									[
-										A2(author$project$SimpleTimer$SimpleTimer, model.addTimerText, author$project$Timer$newTimer)
+										author$project$Timer$newTimer(model.addTimerText)
 									]))
 						}),
 					elm$core$Platform$Cmd$none);
@@ -6472,41 +6494,27 @@ var author$project$Main$update = F2(
 			case 'TimerCommand':
 				var index = msg.a;
 				var timer_msg = msg.b;
-				var start = A2(elm$core$List$take, index, model.timers);
-				var end = A2(elm$core$List$drop, index, model.timers);
-				if (!end.b) {
-					return _Utils_Tuple2(model, elm$core$Platform$Cmd$none);
-				} else {
-					var x = end.a;
-					var xs = end.b;
-					var updated = A2(author$project$SimpleTimer$updateState, timer_msg, x);
-					var cur_time = function () {
-						if (timer_msg.$ === 'Update') {
-							var new_time = timer_msg.a;
-							return new_time;
-						} else {
-							return model.now;
-						}
-					}();
-					return _Utils_Tuple2(
-						_Utils_update(
+				var cur_time = function () {
+					if (timer_msg.$ === 'Update') {
+						var new_time = timer_msg.a;
+						return new_time;
+					} else {
+						return model.now;
+					}
+				}();
+				return A2(
+					elm$core$Tuple$mapFirst,
+					function (timers) {
+						return _Utils_update(
 							model,
-							{
-								now: cur_time,
-								timers: _Utils_ap(
-									start,
-									A2(elm$core$List$cons, updated.a, xs))
-							}),
-						A2(
-							elm$core$Platform$Cmd$map,
-							author$project$Main$TimerCommand(index),
-							updated.b));
-				}
+							{now: cur_time, timers: timers});
+					},
+					A4(author$project$Timer$forwardToIndex, author$project$Main$TimerCommand, model.timers, index, timer_msg));
 			case 'Tick':
 				var cur_time = msg.a;
 				var updated = A2(
 					elm$core$List$map,
-					author$project$SimpleTimer$updateState(
+					author$project$Timer$updateState(
 						author$project$Timer$Update(cur_time)),
 					model.timers);
 				return _Utils_Tuple2(
@@ -8042,28 +8050,28 @@ var author$project$Timer$displayTime = F2(
 	function (cur_time, timer) {
 		return author$project$Timer$millisToString(
 			function () {
-				var state = timer.a;
-				switch (state.$) {
+				var _n0 = timer.state;
+				switch (_n0.$) {
 					case 'Stopped':
-						var interval = state.a;
+						var interval = _n0.a;
 						return interval;
 					case 'Starting':
-						var interval = state.a;
+						var interval = _n0.a;
 						return interval;
 					case 'Running':
-						var interval = state.a;
-						var start = state.b;
+						var interval = _n0.a;
+						var start = _n0.b;
 						return A3(author$project$Timer$updatedTime, cur_time, start, interval);
 					default:
-						var interval = state.a;
-						var start = state.b;
+						var interval = _n0.a;
+						var start = _n0.b;
 						return A3(author$project$Timer$updatedTime, cur_time, start, interval);
 				}
 			}());
 	});
 var author$project$Timer$isRunning = function (timer) {
-	var state = timer.a;
-	switch (state.$) {
+	var _n0 = timer.state;
+	switch (_n0.$) {
 		case 'Stopped':
 			return false;
 		case 'Starting':
@@ -8448,7 +8456,7 @@ var author$project$SimpleTimer$getHtml = F2(
 								_List_Nil,
 								_List_fromArray(
 									[
-										author$project$Timer$isRunning(timer.timer) ? A2(
+										author$project$Timer$isRunning(timer) ? A2(
 										elm$html$Html$button,
 										_List_fromArray(
 											[
@@ -8499,7 +8507,7 @@ var author$project$SimpleTimer$getHtml = F2(
 							_List_fromArray(
 								[
 									elm$html$Html$text(
-									A2(author$project$Timer$displayTime, cur_time, timer.timer))
+									A2(author$project$Timer$displayTime, cur_time, timer))
 								]))
 						]),
 					rundis$elm_bootstrap$Bootstrap$Card$config(

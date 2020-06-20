@@ -2,7 +2,7 @@ module SimpleTimer exposing (..)
 
 
 import Time
-import Timer
+import Timer exposing (Timer)
 import Html exposing (..)
 import Html.Events exposing (..)
 import Html.Attributes exposing (..)
@@ -14,28 +14,24 @@ import Bootstrap.Utilities.Size as Size
 -- MODEL
 
 type alias SimpleTimer =
-  { name  : String
-  , timer : Timer.Timer
-  }
+  Timer
 
 -- UPDATE
 
-updateState : Timer.Msg -> SimpleTimer -> (SimpleTimer, Cmd Timer.Msg)
-updateState msg timer =
-  Timer.updateState msg timer.timer
-  |> Tuple.mapFirst (\t -> { timer | timer = t })
+type alias Msg =
+  Timer.Msg
 
 
 -- VIEW
 
-getHtml : Time.Posix -> SimpleTimer -> Html Timer.Msg
+getHtml : Time.Posix -> SimpleTimer -> Html Msg
 getHtml cur_time timer =
   Card.group
     [ Card.config [ Card.secondary ]
       |> Card.block []
           [ Block.custom <|
               div []
-                [ if Timer.isRunning timer.timer then
+                [ if Timer.isRunning timer then
                     button [ onClick Timer.Stop ] [ text "Stop" ]
                   else
                       button [ onClick Timer.Start ] [ text "Start" ]
@@ -44,7 +40,7 @@ getHtml cur_time timer =
     , Card.config [ Card.light ]
       |> Card.block [] [ Block.titleH4 [] [ text timer.name ] ]
     , Card.config [ Card.light ]
-      |> Card.block [] [ Block.text [] [ text <| Timer.displayTime cur_time timer.timer ] ]
+      |> Card.block [] [ Block.text [] [ text <| Timer.displayTime cur_time timer ] ]
     , Card.config [ Card.secondary ]
       |> Card.block []
           [ Block.custom <|

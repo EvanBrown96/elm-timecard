@@ -1,4 +1,4 @@
-module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState)
+module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState, forwardToIndex)
 
 
 import Time
@@ -10,11 +10,14 @@ import Task
 
 type alias Millis = Int
 
-type Timer =
-  Timer TimerState
+type alias Timer =
+  { name  : String
+  , state : TimerState
+  }
 
-newTimer : Timer
-newTimer = Timer <| Stopped 0
+newTimer : String ->Timer
+newTimer name =
+  Timer name <| Stopped 0
 
 type TimerState =
     Stopped Millis
@@ -35,10 +38,9 @@ updateState : Msg -> Timer -> (Timer, Cmd Msg)
 updateState msg timer =
   case msg of
       Start ->
-        case timer of
-
-          Timer (Stopped interval) ->
-            ( Timer (Starting interval)
+        case timer.state  of
+          Stopped interval ->
+            ( { timer | state = Starting interval }
             , Task.perform Update Time.now
             )
 
@@ -46,9 +48,9 @@ updateState msg timer =
             ( timer, Cmd.none )
 
       Stop ->
-        case timer of
-          Timer (Running interval start) ->
-            ( Timer (Stopping interval start)
+        case timer.state of
+          Running interval start ->
+            ( { timer | state = Stopping interval start }
             , Task.perform Update Time.now
             )
 
@@ -56,41 +58,37 @@ updateState msg timer =
             ( timer, Cmd.none )
 
       Reset ->
-        ( Timer (Stopped 0), Cmd.none )
+        ( newTimer timer.name, Cmd.none )
 
       Update cur_time ->
         timeSet cur_time timer
 
 timeSet : Time.Posix -> Timer -> (Timer, Cmd Msg)
 timeSet cur_time timer =
-    case timer of
-      Timer state ->
-        case state of
-          Starting interval ->
-            ( Timer (Running interval cur_time), Cmd.none )
+    case timer.state of
+        Starting interval ->
+          ( { timer | state = Running interval cur_time }, Cmd.none )
 
-          Stopping interval start ->
-            ( Timer (Stopped (updatedTime cur_time start interval))
-            , Cmd.none
-            )
+        Stopping interval start ->
+          ( { timer | state = Stopped (updatedTime cur_time start interval) }
+          , Cmd.none
+          )
 
-          _ ->
-            ( timer, Cmd.none )
+        _ ->
+          ( timer, Cmd.none )
 
 
 -- HELPERS
 
 isRunning : Timer -> Bool
 isRunning timer =
-  case timer of
-    Timer state ->
-      case state of
-        Stopped _ ->
-          False
-        Starting _ ->
-          False
-        _ ->
-          True
+  case timer.state of
+    Stopped _ ->
+      False
+    Starting _ ->
+      False
+    _ ->
+      True
 
 updatedTime : Time.Posix -> Time.Posix -> Millis -> Millis
 updatedTime cur_time start offset =
@@ -99,9 +97,7 @@ updatedTime cur_time start offset =
 displayTime : Time.Posix -> Timer -> String
 displayTime cur_time timer =
   millisToString <|
-    case timer of
-      Timer state ->
-        case state of
+    case timer.state of
           Stopped interval ->
             interval
           Starting interval ->
@@ -124,3 +120,21 @@ millisToString millis =
     ++ ":" ++ (String.fromInt minutes |> padZero)
     ++ ":" ++ (String.fromInt seconds |> padZero)
     ++ "." ++ (String.fromInt centis  |> padZero)
+
+forwardToIndex : (Int -> Msg -> parent) -> List Timer -> Int -> Msg -> (List Timer, Cmd parent)
+forwardToIndex parentConstructor timers index msg =
+  let
+    start = List.take index timers
+    end   = List.drop index timers
+  in
+    case end of
+      x::xs ->
+        let
+          updated  = updateState msg x
+        in
+          ( start ++ Tuple.first updated :: xs
+          , Cmd.map (parentConstructor index) (Tuple.second updated)
+          )
+
+      _ ->
+        ( timers, Cmd.none )
