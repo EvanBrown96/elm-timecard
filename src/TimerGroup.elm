@@ -1,9 +1,11 @@
-module TimerGroup exposing (..)
+module TimerGroup exposing (TimerGroup, newTimerGroup, Msg, updateState)
 
 
 import Timer exposing (Timer)
 import Time
 
+
+-- MODEL
 
 type TimerGroup =
   TimerGroup Bool Timer (List Timer)
@@ -11,6 +13,9 @@ type TimerGroup =
 newTimerGroup : Bool -> String -> TimerGroup
 newTimerGroup exclusive name =
   TimerGroup exclusive (Timer.newTimer name) []
+
+
+-- UPDATE
 
 type Msg =
     Reset
@@ -31,7 +36,9 @@ cmdHandler index msg =
     Timer.Update time ->
       Update index time
 
-
+timerGroupForward : List Timer -> Int -> Timer.Msg -> (List Timer, Cmd Msg)
+timerGroupForward =
+  Timer.forwardToIndex cmdHandler
 
 updateState : Msg -> TimerGroup -> (TimerGroup, Cmd Msg)
 updateState msg timer_group =
@@ -49,7 +56,7 @@ updateState msg timer_group =
           in
             case exclusive of
               False ->
-                Timer.forwardToIndex cmdHandler children index Timer.Start
+                timerGroupForward children index Timer.Start
                 |> Tuple.mapFirst (TimerGroup exclusive updated_main)
 
               True ->
@@ -71,7 +78,7 @@ updateState msg timer_group =
 
         Stop index ->
           let
-            ( updated_children, cmd ) = Timer.forwardToIndex cmdHandler children index Timer.Stop
+            ( updated_children, cmd ) = timerGroupForward children index Timer.Stop
             all_stopped               = List.all (not << Timer.isRunning) updated_children
             ( updated_main, _ )       = if all_stopped
                                         then Timer.updateState Timer.Stop main
@@ -83,7 +90,7 @@ updateState msg timer_group =
           let
             ( updated_main, _ ) = Timer.updateState (Timer.Update cur_time) main
           in
-            Timer.forwardToIndex cmdHandler children index (Timer.Update cur_time)
+            timerGroupForward children index (Timer.Update cur_time)
             |> Tuple.mapFirst (TimerGroup exclusive updated_main)
 
         UpdateAll cur_time ->
@@ -95,3 +102,9 @@ updateState msg timer_group =
             |> Tuple.mapBoth
                  (TimerGroup exclusive updated_main)
                  (\l -> List.indexedMap (\i -> Cmd.map (cmdHandler i)) l |> Cmd.batch )
+
+
+-- VIEW
+
+-- getHtml : Time.Posix -> TimerGroup -> Msg
+-- getHtml cur_time timer_group =

@@ -1,22 +1,23 @@
 module Main exposing (..)
 
 
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+-- import Html exposing (..)
+-- import Html.Attributes exposing (..)
+-- import Html.Events exposing (onClick, onInput)
 import Browser
 import Time
 import Time.Extra as Time
 import Task
 import Timer exposing (Timer)
 import SimpleTimer exposing (SimpleTimer)
-import Bootstrap.CDN as CDN
-import Bootstrap.Grid as Grid
-import Bootstrap.Grid.Row as Row
-import Bootstrap.Grid.Col as Col
-import Bootstrap.Utilities.Spacing as Spacing
+-- import Bootstrap.CDN as CDN
+-- import Bootstrap.Grid as Grid
+-- import Bootstrap.Grid.Row as Row
+-- import Bootstrap.Grid.Col as Col
+-- import Bootstrap.Utilities.Spacing as Spacing
 import Bootstrap.Modal as Modal
-
+import Element exposing (..)
+import Element.Input as Input
 
 main : Program () Model Msg
 main =
@@ -39,7 +40,7 @@ type alias Model =
 
 init : () -> (Model, Cmd Msg)
 init flags =
-  ( Model (Time.millisToPosix 0) Modal.hidden "" []
+  ( Model (Time.millisToPosix 0) Modal.hidden "" [ Timer.newTimer "poo" ]
   , Cmd.none
   )
 
@@ -115,33 +116,20 @@ subscriptions model =
 view : Model -> Browser.Document Msg
 view model =
   { title = "Elm Timecard"
-  , body =
-      [ CDN.stylesheet
-      , addModal model
-      , Grid.container [] <|
-          buttonsRow :: List.indexedMap (timerToRow model.now) model.timers
-      ]
+  , body = List.singleton <| layout [] <|
+      column [ width fill ] <| buttonsRow model :: List.indexedMap
+        (\i t -> SimpleTimer.view model.now t |> Element.map (TimerCommand i)) model.timers
   }
 
-addModal : Model -> Html Msg
-addModal model =
-  Modal.config HideAddModal
-  |> Modal.hideOnBackdropClick True
-  |> Modal.header [] [ text "Add New Timer" ]
-  |> Modal.body [] [ input [ placeholder "Timer Name", value model.addTimerText, onInput UpdateTimerText ] [] ]
-  |> Modal.footer [] [ button [ onClick AddTimer ] [ text "Add" ] ]
-  |> Modal.view model.addModalVisible
-
-buttonsRow : Html Msg
-buttonsRow =
-  Grid.row [ Row.attrs [ Spacing.m2 ] ]
-    [ Grid.col []
-        [ button [ onClick ShowAddModal ] [ text "Add Timer" ] ]
-    ]
-
-timerToRow : Time.Posix -> Int -> SimpleTimer -> Html Msg
-timerToRow now index timer =
-  Grid.row [ Row.attrs [ Spacing.m2 ] ]
-    [ Grid.col []
-        [ Html.map (TimerCommand index) (SimpleTimer.getHtml now timer) ]
+buttonsRow : Model -> Element Msg
+buttonsRow model =
+  row []
+    [ Input.text [] { onChange = UpdateTimerText
+                    , text = model.addTimerText
+                    , placeholder = Just <| Input.placeholder [] (text "Timer Name")
+                    , label = Input.labelHidden "Timer Name"
+                    }
+    , Input.button [] { onPress = Just AddTimer
+                      , label = text "Add"
+                      }
     ]
