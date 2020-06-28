@@ -4,20 +4,29 @@ module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..),
 import Time
 import Time.Extra as Time
 import Task
+import Set
+import Helpers exposing (..)
 
 
 -- MODEL
 
 type alias Millis = Int
 
-type alias Timer =
+type Timer =
+  Timer TimerSpec
+
+type alias TimerSpec =
   { name  : String
   , state : TimerState
+  , groupType : Maybe GroupType
   }
 
-newTimer : String ->Timer
+type GroupType =
+  GroupType Bool (List TimerSpec)
+
+newTimer : String -> Timer
 newTimer name =
-  Timer name <| Stopped 0
+  Timer <| TimerSpec name (Stopped 0) Nothing
 
 type TimerState =
     Stopped Millis
@@ -29,66 +38,229 @@ type TimerState =
 -- UPDATE
 
 type Msg =
-    Start
-  | Stop
+    Start ChildIndex
+  | Stop ChildIndex
   | Reset
-  | Update Time.Posix
+  | Update Time.Posix ChildIndex
 
-updateState : Msg -> Timer -> (Timer, Cmd Msg)
-updateState msg timer =
+type ChildIndex =
+    Final
+  | Child Int ChildIndex
+
+encloseMsg : Int -> Msg -> Msg
+encloseMsg index msg =
   case msg of
-      Start ->
-        case timer.state  of
-          Stopped interval ->
-            ( { timer | state = Starting interval }
-            , Task.perform Update Time.now
-            )
+    Start childIndex ->
+      Start (Child index childIndex)
 
-          _ ->
-            ( timer, Cmd.none )
+    Stop childIndex ->
+      Stop (Child index childIndex)
 
-      Stop ->
-        case timer.state of
-          Running interval start ->
-            ( { timer | state = Stopping interval start }
-            , Task.perform Update Time.now
-            )
+    Reset ->
+      Reset
 
-          _ ->
-            ( timer, Cmd.none )
+    Update posixTime childIndex ->
+      Update posixTime (Child index childIndex)
+
+updateState : Msg -> Timer -> ( Timer, Cmd Msg )
+updateState msg timer =
+  case timer of
+    Timer timerSpec ->
+      updateStateBase msg timerSpec
+      |> Tuple.mapFirst Timer
+
+updateStateBase : Msg -> TimerSpec -> ( TimerSpec, Cmd Msg )
+updateStateBase msg timerSpec =
+  case timerSpec.groupType of
+    Nothing ->
+      simpleUpdateState msg timerSpec
+
+    Just group ->
+      groupUpdateState msg timerSpec group
+
+simpleUpdateState : Msg -> TimerSpec -> ( TimerSpec, Cmd Msg )
+simpleUpdateState msg timerSpec =
+  let
+    default = ( timerSpec, Cmd.none )
+  in
+    case msg of
+      Start childIndex ->
+        case childIndex of
+          Final ->
+            startTimerSpec timerSpec
+
+          Child _ _ ->
+            default
+
+      Stop childIndex ->
+        case childIndex of
+          Final ->
+            stopTimerSpec timerSpec
+
+          Child _ _ ->
+            default
 
       Reset ->
-        ( newTimer timer.name, Cmd.none )
+        resetTimerSpec timerSpec
 
-      Update cur_time ->
-        timeSet cur_time timer
+      Update posixTime childIndex  ->
+        case childIndex of
+          Final ->
+            updateTimerSpec posixTime timerSpec
 
-timeSet : Time.Posix -> Timer -> (Timer, Cmd Msg)
-timeSet cur_time timer =
-    case timer.state of
-        Starting interval ->
-          ( { timer | state = Running interval cur_time }, Cmd.none )
+          Child _ _ ->
+            default
 
-        Stopping interval start ->
-          ( { timer | state = Stopped (updatedTime cur_time start interval) }
-          , Cmd.none
+groupUpdateState : Msg -> TimerSpec -> GroupType -> ( TimerSpec, Cmd Msg )
+groupUpdateState msg timerSpec groupType =
+  case groupType of
+    GroupType exclusive children ->
+      let
+        default = ( ( timerSpec, Cmd.none ), ( children, [] ) )
+        ( ( updatedMain, mainCmd ), ( updatedChildren, childCmds ) ) =
+          case msg of
+            Reset ->
+              ( resetTimerSpec timerSpec
+              , List.map resetTimerSpec children |> List.unzip
+              )
+
+            Start childIndex ->
+              case childIndex of
+                Final ->
+                  default
+
+                Child index nextChildIndex ->
+                  let
+                    ( tempChildren, tempCmds ) =
+                      case exclusive of
+                        False ->
+                          forwardToIndex Start children ( index, nextChildIndex )
+                        True ->
+                          let
+                            start = List.take index children
+                            end   = List.drop index children
+                          in
+                            case end of
+                              x::xs ->
+                                List.map (updateStateBase (Stop Final)) start
+                                ++ updateStateBase (Start nextChildIndex) x
+                                :: List.map (updateStateBase (Stop Final)) xs
+                                |> List.unzip
+                                |> Tuple.mapSecond (List.map (Cmd.map (encloseMsg index)))
+
+                              _ ->
+                                ( children, [] )
+                  in
+                    if List.any (Timer >> isRunning) tempChildren
+                    then ( startTimerSpec timerSpec, ( tempChildren, tempCmds ) )
+                    else default
+
+            Stop childIndex ->
+              case childIndex of
+                Final ->
+                  ( stopTimerSpec timerSpec
+                  , List.map (updateStateBase (Stop Final)) children |> List.unzip
+                  )
+
+                Child index nextChildIndex ->
+                  let
+                    ( tempChildren, tempCmds ) = forwardToIndex Stop children ( index, nextChildIndex )
+                  in
+                    if not <| List.any (Timer >> isRunning) tempChildren
+                    then ( stopTimerSpec timerSpec, ( tempChildren, tempCmds ) )
+                    else default
+
+            Update posixTime childIndex ->
+              case childIndex of
+                Final ->
+                  ( updateTimerSpec posixTime timerSpec
+                  , List.map (updateStateBase (Update posixTime Final)) children |> List.unzip
+                  )
+
+                Child index nextChildIndex ->
+                  ( ( timerSpec, Cmd.none )
+                  , forwardToIndex (Update posixTime) children ( index, nextChildIndex )
+                  )
+      in
+        ( { updatedMain | groupType = Just <| GroupType exclusive updatedChildren }
+        , Cmd.batch <| mainCmd :: childCmds
+        )
+
+forwardToIndex : (ChildIndex -> Msg) -> List TimerSpec -> ( Int, ChildIndex ) -> ( List TimerSpec, List (Cmd Msg) )
+forwardToIndex msgConstr timers ( index, nextChildIndex ) =
+  let
+    start = List.take index timers
+    end = List.drop index timers
+  in
+    case end of
+      x::xs ->
+        let
+          ( updated, cmd ) = updateStateBase (msgConstr nextChildIndex) x
+        in
+          ( start ++ updated :: xs
+          , Cmd.map (encloseMsg index) cmd |> List.singleton
           )
+      _ ->
+        ( timers, [] )
 
-        _ ->
-          ( timer, Cmd.none )
+updateTimerSpec : Time.Posix -> TimerSpec -> ( TimerSpec, Cmd Msg )
+updateTimerSpec curTime timerSpec =
+  case timerSpec.state of
+    Starting interval ->
+      ( { timerSpec | state = Running interval curTime }
+      , Cmd.none
+      )
+
+    Stopping interval start ->
+      ( { timerSpec | state = Stopped (updatedTime curTime start interval) }
+      , Cmd.none
+      )
+
+    _ ->
+      ( timerSpec, Cmd.none )
+
+startTimerSpec : TimerSpec -> ( TimerSpec, Cmd Msg )
+startTimerSpec timerSpec =
+  case timerSpec.state of
+    Stopped interval ->
+      ( { timerSpec | state = Starting interval }
+      , Task.perform (\t -> Update t Final) Time.now
+      )
+
+    _ ->
+      ( timerSpec, Cmd.none )
+
+stopTimerSpec : TimerSpec -> ( TimerSpec, Cmd Msg )
+stopTimerSpec timerSpec =
+  case timerSpec.state of
+    Running interval start ->
+      ( { timerSpec | state = Stopping interval start }
+      , Task.perform (\t -> Update t Final) Time.now
+      )
+
+    _ ->
+      ( timerSpec, Cmd.none )
+
+
+resetTimerSpec : TimerSpec -> ( TimerSpec, Cmd Msg )
+resetTimerSpec timerSpec =
+    ( { timerSpec | state = Stopped 0 }, Cmd.none )
+
 
 
 -- HELPERS
 
 isRunning : Timer -> Bool
 isRunning timer =
-  case timer.state of
-    Stopped _ ->
-      False
-    Stopping _ _ ->
-      False
-    _ ->
-      True
+  case timer of
+    Timer timerSpec ->
+      case timerSpec.state of
+        Stopped _ ->
+          False
+        Stopping _ _ ->
+          False
+        _ ->
+          True
 
 updatedTime : Time.Posix -> Time.Posix -> Millis -> Millis
 updatedTime cur_time start offset =
@@ -97,7 +269,9 @@ updatedTime cur_time start offset =
 displayTime : Time.Posix -> Timer -> String
 displayTime cur_time timer =
   millisToString <|
-    case timer.state of
+    case timer of
+      Timer timerSpec ->
+        case timerSpec.state of
           Stopped interval ->
             interval
           Starting interval ->
@@ -121,20 +295,21 @@ millisToString millis =
     ++ ":" ++ (String.fromInt seconds |> padZero)
     ++ "." ++ (String.fromInt centis  |> padZero)
 
-forwardToIndex : (Int -> Msg -> parent) -> List Timer -> Int -> Msg -> (List Timer, Cmd parent)
-forwardToIndex parentConstructor timers index msg =
-  let
-    start = List.take index timers
-    end   = List.drop index timers
-  in
-    case end of
-      x::xs ->
-        let
-          updated  = updateState msg x
-        in
-          ( start ++ Tuple.first updated :: xs
-          , Cmd.map (parentConstructor index) (Tuple.second updated)
-          )
 
-      _ ->
-        ( timers, Cmd.none )
+-- forwardToIndex : (Int -> Msg -> parent) -> List Timer -> Int -> Msg -> (List Timer, Cmd parent)
+-- forwardToIndex parentConstructor timers index msg =
+--   let
+--     start = List.take index timers
+--     end   = List.drop index timers
+--   in
+--     case end of
+--       x::xs ->
+--         let
+--           updated  = updateState msg x
+--         in
+--           ( start ++ Tuple.first updated :: xs
+--           , Cmd.map (parentConstructor index) (Tuple.second updated)
+--           )
+--
+--       _ ->
+--         ( timers, Cmd.none )
