@@ -1,20 +1,14 @@
 module Main exposing (..)
 
 
--- import Html exposing (..)
--- import Html.Attributes exposing (..)
--- import Html.Events exposing (onClick, onInput)
 import Browser
 import Time
 import Time.Extra as Time
 import Task
 import Timer exposing (Timer)
 import SimpleTimer exposing (SimpleTimer)
--- import Bootstrap.CDN as CDN
--- import Bootstrap.Grid as Grid
--- import Bootstrap.Grid.Row as Row
--- import Bootstrap.Grid.Col as Col
--- import Bootstrap.Utilities.Spacing as Spacing
+import TimerGroup exposing (TimerGroup)
+import GeneralizedTimer exposing (GeneralizedTimer)
 import Bootstrap.Modal as Modal
 import Element exposing (..)
 import Element.Input as Input
@@ -35,12 +29,12 @@ type alias Model =
   { now             : Time.Posix
   , addModalVisible : Modal.Visibility
   , addTimerText    : String
-  , timers          : List SimpleTimer
+  , timers          : List GeneralizedTimer
   }
 
 init : () -> (Model, Cmd Msg)
 init flags =
-  ( Model (Time.millisToPosix 0) Modal.hidden "" [ Timer.newTimer "poo" ]
+  ( Model (Time.millisToPosix 0) Modal.hidden "" []
   , Cmd.none
   )
 
@@ -52,7 +46,7 @@ type Msg =
   | ShowAddModal
   | HideAddModal
   | UpdateTimerText String
-  | TimerCommand Int SimpleTimer.Msg
+  | TimerCommand Int GeneralizedTimer.Msg
   | Tick Time.Posix
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -61,7 +55,7 @@ update msg model =
     AddTimer ->
       ( { model | addModalVisible = Modal.hidden
                 , addTimerText    = ""
-                , timers          = model.timers ++ [ Timer.newTimer model.addTimerText ]
+                , timers          = model.timers ++ [ GeneralizedTimer.SimpleTimer <| Timer.newTimer model.addTimerText ]
         }
       , Cmd.none
       )
@@ -117,7 +111,7 @@ view : Model -> Browser.Document Msg
 view model =
   { title = "Elm Timecard"
   , body = List.singleton <| layout [] <|
-      column [ width fill ] <| buttonsRow model :: List.indexedMap
+      column [ centerX, width (px 800) ] <| buttonsRow model :: List.indexedMap
         (\i t -> SimpleTimer.view model.now t |> Element.map (TimerCommand i)) model.timers
   }
 

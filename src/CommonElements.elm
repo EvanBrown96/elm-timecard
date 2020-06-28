@@ -7,19 +7,17 @@ import Element.Border as Border
 
 rowHeight = 80
 
-defaultSpacing = spacing 10
-
-defaultPadding = padding 10
+defaultPadding = 10
 
 primaryColor = BG.color <| rgb255 220 220 220
 
 secondaryColor = BG.color <| rgb255 119 136 153
 
-timerSegmentBasicAttrib = [ height <| px rowHeight, defaultPadding ]
+timerSegmentBasicAttrib = [ height <| px rowHeight, padding defaultPadding ]
 
 borderColor = Border.color <| rgb255 50 50 50
 
-borderWidth = 4
+borderWidth = 1
 
 borderRadius = rowHeight//10
 
@@ -52,9 +50,9 @@ rightBorder = borderBasicAttrib ++ [ Border.widthEach { bottom = borderWidth
                                    ]
 
 timerSegment elem1 elem2 elem3 elem4 =
-  row [ defaultPadding, width fill ]
-    [ el (timerSegmentBasicAttrib ++ leftBorder ++ [ secondaryColor, width <| px <| rowHeight ]) elem1
+  row [ paddingXY 0 defaultPadding, width fill ]
+    [ el (timerSegmentBasicAttrib ++ leftBorder ++ [ secondaryColor, width <| (px rowHeight) ]) elem1
     , el (timerSegmentBasicAttrib ++ middleBorder ++ [ primaryColor, width <| fillPortion 1]) elem2
     , el (timerSegmentBasicAttrib ++ middleBorder ++ [ primaryColor, width <| fillPortion 1]) elem3
-    , el (timerSegmentBasicAttrib ++ rightBorder ++ [ secondaryColor, width <| px <| rowHeight ]) elem4
+    , el (timerSegmentBasicAttrib ++ rightBorder ++ [ secondaryColor, width <| (px rowHeight) ]) elem4
     ]

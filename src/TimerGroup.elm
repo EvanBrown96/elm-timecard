@@ -1,8 +1,11 @@
-module TimerGroup exposing (TimerGroup, newTimerGroup, Msg, updateState)
+module TimerGroup exposing (TimerGroup, newTimerGroup, Msg, updateState, view)
 
 
 import Timer exposing (Timer)
 import Time
+import Element exposing (..)
+import CommonElements exposing (timerSegment)
+import Element.Input as Input
 
 
 -- MODEL
@@ -106,5 +109,25 @@ updateState msg timer_group =
 
 -- VIEW
 
--- getHtml : Time.Posix -> TimerGroup -> Msg
--- getHtml cur_time timer_group =
+view : Time.Posix -> TimerGroup -> Element Msg
+view cur_time timer_group =
+  case timer_group of
+    TimerGroup exclusive main children ->
+        column [] <|
+          timerSegment
+            none
+            (el [ centerY ] <| text main.name)
+            (el [ centerY ] <| text <| Timer.displayTime cur_time main)
+            (Input.button [ centerX, centerY ]
+               { onPress = Just Reset, label = text "Reset" })
+          :: List.indexedMap
+              (\i t -> timerSegment
+                (Input.button [ centerX, centerY ] <|
+                   if Timer.isRunning t then
+                     { onPress = Just (Stop i), label = text "Stop" }
+                   else
+                     { onPress = Just (Start i), label = text "Start" })
+                (el [ centerY ] <| text t.name)
+                (el [ centerY ] <| text <| Timer.displayTime cur_time t)
+                none
+              ) children
