@@ -4452,23 +4452,6 @@ var author$project$Main$Model = F4(
 	function (now, addModalVisible, addTimerText, timers) {
 		return {addModalVisible: addModalVisible, addTimerText: addTimerText, now: now, timers: timers};
 	});
-var author$project$Timer$Stopped = function (a) {
-	return {$: 'Stopped', a: a};
-};
-var author$project$Timer$Timer = F2(
-	function (name, state) {
-		return {name: name, state: state};
-	});
-var elm$core$Basics$apL = F2(
-	function (f, x) {
-		return f(x);
-	});
-var author$project$Timer$newTimer = function (name) {
-	return A2(
-		author$project$Timer$Timer,
-		name,
-		author$project$Timer$Stopped(0));
-};
 var elm$core$Basics$False = {$: 'False'};
 var elm$core$Basics$True = {$: 'True'};
 var elm$core$Result$isOk = function (result) {
@@ -4651,6 +4634,10 @@ var elm$core$Array$treeFromBuilder = F2(
 		}
 	});
 var elm$core$Basics$add = _Basics_add;
+var elm$core$Basics$apL = F2(
+	function (f, x) {
+		return f(x);
+	});
 var elm$core$Basics$floor = _Basics_floor;
 var elm$core$Basics$gt = _Utils_gt;
 var elm$core$Basics$max = F2(
@@ -4958,10 +4945,7 @@ var author$project$Main$init = function (flags) {
 			elm$time$Time$millisToPosix(0),
 			rundis$elm_bootstrap$Bootstrap$Modal$hidden,
 			'',
-			_List_fromArray(
-				[
-					author$project$Timer$newTimer('poo')
-				])),
+			_List_Nil),
 		elm$core$Platform$Cmd$none);
 };
 var author$project$Main$Tick = function (a) {
@@ -5479,16 +5463,181 @@ var author$project$Main$TimerCommand = F2(
 	function (a, b) {
 		return {$: 'TimerCommand', a: a, b: b};
 	});
-var author$project$Timer$Update = function (a) {
-	return {$: 'Update', a: a};
+var author$project$Timer$Timer = function (a) {
+	return {$: 'Timer', a: a};
+};
+var author$project$Timer$GroupType = F2(
+	function (a, b) {
+		return {$: 'GroupType', a: a, b: b};
+	});
+var author$project$Timer$Start = function (a) {
+	return {$: 'Start', a: a};
+};
+var author$project$Timer$Stop = function (a) {
+	return {$: 'Stop', a: a};
+};
+var author$project$Timer$Update = F2(
+	function (a, b) {
+		return {$: 'Update', a: a, b: b};
+	});
+var author$project$Timer$Child = F2(
+	function (a, b) {
+		return {$: 'Child', a: a, b: b};
+	});
+var author$project$Timer$Reset = {$: 'Reset'};
+var author$project$Timer$encloseMsg = F2(
+	function (index, msg) {
+		switch (msg.$) {
+			case 'Start':
+				var childIndex = msg.a;
+				return author$project$Timer$Start(
+					A2(author$project$Timer$Child, index, childIndex));
+			case 'Stop':
+				var childIndex = msg.a;
+				return author$project$Timer$Stop(
+					A2(author$project$Timer$Child, index, childIndex));
+			case 'Reset':
+				return author$project$Timer$Reset;
+			default:
+				var posixTime = msg.a;
+				var childIndex = msg.b;
+				return A2(
+					author$project$Timer$Update,
+					posixTime,
+					A2(author$project$Timer$Child, index, childIndex));
+		}
+	});
+var author$project$Timer$Final = {$: 'Final'};
+var author$project$Timer$fullStop = author$project$Timer$Stop(author$project$Timer$Final);
+var author$project$Timer$fullUpdate = function (posixTime) {
+	return A2(author$project$Timer$Update, posixTime, author$project$Timer$Final);
+};
+var author$project$Timer$isRunning = function (timer) {
+	var timerSpec = timer.a;
+	var _n1 = timerSpec.state;
+	switch (_n1.$) {
+		case 'Stopped':
+			return false;
+		case 'Stopping':
+			return false;
+		default:
+			return true;
+	}
+};
+var author$project$Timer$Stopped = function (a) {
+	return {$: 'Stopped', a: a};
+};
+var author$project$Timer$resetTimerSpec = function (timerSpec) {
+	return _Utils_Tuple2(
+		_Utils_update(
+			timerSpec,
+			{
+				state: author$project$Timer$Stopped(0)
+			}),
+		elm$core$Platform$Cmd$none);
 };
 var author$project$Timer$Starting = function (a) {
 	return {$: 'Starting', a: a};
+};
+var elm$core$Task$Perform = function (a) {
+	return {$: 'Perform', a: a};
+};
+var elm$core$Task$init = elm$core$Task$succeed(_Utils_Tuple0);
+var elm$core$Task$map = F2(
+	function (func, taskA) {
+		return A2(
+			elm$core$Task$andThen,
+			function (a) {
+				return elm$core$Task$succeed(
+					func(a));
+			},
+			taskA);
+	});
+var elm$core$Task$spawnCmd = F2(
+	function (router, _n0) {
+		var task = _n0.a;
+		return _Scheduler_spawn(
+			A2(
+				elm$core$Task$andThen,
+				elm$core$Platform$sendToApp(router),
+				task));
+	});
+var elm$core$Task$onEffects = F3(
+	function (router, commands, state) {
+		return A2(
+			elm$core$Task$map,
+			function (_n0) {
+				return _Utils_Tuple0;
+			},
+			elm$core$Task$sequence(
+				A2(
+					elm$core$List$map,
+					elm$core$Task$spawnCmd(router),
+					commands)));
+	});
+var elm$core$Task$onSelfMsg = F3(
+	function (_n0, _n1, _n2) {
+		return elm$core$Task$succeed(_Utils_Tuple0);
+	});
+var elm$core$Task$cmdMap = F2(
+	function (tagger, _n0) {
+		var task = _n0.a;
+		return elm$core$Task$Perform(
+			A2(elm$core$Task$map, tagger, task));
+	});
+_Platform_effectManagers['Task'] = _Platform_createManager(elm$core$Task$init, elm$core$Task$onEffects, elm$core$Task$onSelfMsg, elm$core$Task$cmdMap);
+var elm$core$Task$command = _Platform_leaf('Task');
+var elm$core$Task$perform = F2(
+	function (toMessage, task) {
+		return elm$core$Task$command(
+			elm$core$Task$Perform(
+				A2(elm$core$Task$map, toMessage, task)));
+	});
+var author$project$Timer$startTimerSpec = function (timerSpec) {
+	var _n0 = timerSpec.state;
+	if (_n0.$ === 'Stopped') {
+		var interval = _n0.a;
+		return _Utils_Tuple2(
+			_Utils_update(
+				timerSpec,
+				{
+					state: author$project$Timer$Starting(interval)
+				}),
+			A2(
+				elm$core$Task$perform,
+				function (t) {
+					return A2(author$project$Timer$Update, t, author$project$Timer$Final);
+				},
+				elm$time$Time$now));
+	} else {
+		return _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none);
+	}
 };
 var author$project$Timer$Stopping = F2(
 	function (a, b) {
 		return {$: 'Stopping', a: a, b: b};
 	});
+var author$project$Timer$stopTimerSpec = function (timerSpec) {
+	var _n0 = timerSpec.state;
+	if (_n0.$ === 'Running') {
+		var interval = _n0.a;
+		var start = _n0.b;
+		return _Utils_Tuple2(
+			_Utils_update(
+				timerSpec,
+				{
+					state: A2(author$project$Timer$Stopping, interval, start)
+				}),
+			A2(
+				elm$core$Task$perform,
+				function (t) {
+					return A2(author$project$Timer$Update, t, author$project$Timer$Final);
+				},
+				elm$time$Time$now));
+	} else {
+		return _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none);
+	}
+};
 var author$project$Timer$Running = F2(
 	function (a, b) {
 		return {$: 'Running', a: a, b: b};
@@ -6164,17 +6313,17 @@ var author$project$Timer$updatedTime = F3(
 	function (cur_time, start, offset) {
 		return offset + A4(justinmimbs$time_extra$Time$Extra$diff, justinmimbs$time_extra$Time$Extra$Millisecond, elm$time$Time$utc, start, cur_time);
 	});
-var author$project$Timer$timeSet = F2(
-	function (cur_time, timer) {
-		var _n0 = timer.state;
+var author$project$Timer$updateTimerSpec = F2(
+	function (curTime, timerSpec) {
+		var _n0 = timerSpec.state;
 		switch (_n0.$) {
 			case 'Starting':
 				var interval = _n0.a;
 				return _Utils_Tuple2(
 					_Utils_update(
-						timer,
+						timerSpec,
 						{
-							state: A2(author$project$Timer$Running, interval, cur_time)
+							state: A2(author$project$Timer$Running, interval, curTime)
 						}),
 					elm$core$Platform$Cmd$none);
 			case 'Stopping':
@@ -6182,109 +6331,66 @@ var author$project$Timer$timeSet = F2(
 				var start = _n0.b;
 				return _Utils_Tuple2(
 					_Utils_update(
-						timer,
+						timerSpec,
 						{
 							state: author$project$Timer$Stopped(
-								A3(author$project$Timer$updatedTime, cur_time, start, interval))
+								A3(author$project$Timer$updatedTime, curTime, start, interval))
 						}),
 					elm$core$Platform$Cmd$none);
 			default:
-				return _Utils_Tuple2(timer, elm$core$Platform$Cmd$none);
+				return _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none);
 		}
 	});
-var elm$core$Task$Perform = function (a) {
-	return {$: 'Perform', a: a};
-};
-var elm$core$Task$init = elm$core$Task$succeed(_Utils_Tuple0);
-var elm$core$Task$map = F2(
-	function (func, taskA) {
-		return A2(
-			elm$core$Task$andThen,
-			function (a) {
-				return elm$core$Task$succeed(
-					func(a));
-			},
-			taskA);
-	});
-var elm$core$Task$spawnCmd = F2(
-	function (router, _n0) {
-		var task = _n0.a;
-		return _Scheduler_spawn(
-			A2(
-				elm$core$Task$andThen,
-				elm$core$Platform$sendToApp(router),
-				task));
-	});
-var elm$core$Task$onEffects = F3(
-	function (router, commands, state) {
-		return A2(
-			elm$core$Task$map,
-			function (_n0) {
-				return _Utils_Tuple0;
-			},
-			elm$core$Task$sequence(
-				A2(
-					elm$core$List$map,
-					elm$core$Task$spawnCmd(router),
-					commands)));
-	});
-var elm$core$Task$onSelfMsg = F3(
-	function (_n0, _n1, _n2) {
-		return elm$core$Task$succeed(_Utils_Tuple0);
-	});
-var elm$core$Task$cmdMap = F2(
-	function (tagger, _n0) {
-		var task = _n0.a;
-		return elm$core$Task$Perform(
-			A2(elm$core$Task$map, tagger, task));
-	});
-_Platform_effectManagers['Task'] = _Platform_createManager(elm$core$Task$init, elm$core$Task$onEffects, elm$core$Task$onSelfMsg, elm$core$Task$cmdMap);
-var elm$core$Task$command = _Platform_leaf('Task');
-var elm$core$Task$perform = F2(
-	function (toMessage, task) {
-		return elm$core$Task$command(
-			elm$core$Task$Perform(
-				A2(elm$core$Task$map, toMessage, task)));
-	});
-var author$project$Timer$updateState = F2(
-	function (msg, timer) {
+var author$project$Timer$simpleUpdateState = F2(
+	function (msg, timerSpec) {
+		var _default = _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none);
 		switch (msg.$) {
 			case 'Start':
-				var _n1 = timer.state;
-				if (_n1.$ === 'Stopped') {
-					var interval = _n1.a;
-					return _Utils_Tuple2(
-						_Utils_update(
-							timer,
-							{
-								state: author$project$Timer$Starting(interval)
-							}),
-						A2(elm$core$Task$perform, author$project$Timer$Update, elm$time$Time$now));
+				var childIndex = msg.a;
+				if (childIndex.$ === 'Final') {
+					return author$project$Timer$startTimerSpec(timerSpec);
 				} else {
-					return _Utils_Tuple2(timer, elm$core$Platform$Cmd$none);
+					return _default;
 				}
 			case 'Stop':
-				var _n2 = timer.state;
-				if (_n2.$ === 'Running') {
-					var interval = _n2.a;
-					var start = _n2.b;
-					return _Utils_Tuple2(
-						_Utils_update(
-							timer,
-							{
-								state: A2(author$project$Timer$Stopping, interval, start)
-							}),
-						A2(elm$core$Task$perform, author$project$Timer$Update, elm$time$Time$now));
+				var childIndex = msg.a;
+				if (childIndex.$ === 'Final') {
+					return author$project$Timer$stopTimerSpec(timerSpec);
 				} else {
-					return _Utils_Tuple2(timer, elm$core$Platform$Cmd$none);
+					return _default;
 				}
 			case 'Reset':
-				return _Utils_Tuple2(
-					author$project$Timer$newTimer(timer.name),
-					elm$core$Platform$Cmd$none);
+				return author$project$Timer$resetTimerSpec(timerSpec);
 			default:
-				var cur_time = msg.a;
-				return A2(author$project$Timer$timeSet, cur_time, timer);
+				var posixTime = msg.a;
+				var childIndex = msg.b;
+				if (childIndex.$ === 'Final') {
+					return A2(author$project$Timer$updateTimerSpec, posixTime, timerSpec);
+				} else {
+					return _default;
+				}
+		}
+	});
+var elm$core$Basics$not = _Basics_not;
+var elm$core$List$any = F2(
+	function (isOkay, list) {
+		any:
+		while (true) {
+			if (!list.b) {
+				return false;
+			} else {
+				var x = list.a;
+				var xs = list.b;
+				if (isOkay(x)) {
+					return true;
+				} else {
+					var $temp$isOkay = isOkay,
+						$temp$list = xs;
+					isOkay = $temp$isOkay;
+					list = $temp$list;
+					continue any;
+				}
+			}
 		}
 	});
 var elm$core$List$drop = F2(
@@ -6308,6 +6414,10 @@ var elm$core$List$drop = F2(
 			}
 		}
 	});
+var elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
 var elm$core$List$takeReverse = F3(
 	function (n, list, kept) {
 		takeReverse:
@@ -6434,31 +6544,6 @@ var elm$core$List$take = F2(
 	function (n, list) {
 		return A3(elm$core$List$takeFast, 0, n, list);
 	});
-var elm$core$Platform$Cmd$map = _Platform_map;
-var elm$core$Tuple$second = function (_n0) {
-	var y = _n0.b;
-	return y;
-};
-var author$project$Timer$forwardToIndex = F4(
-	function (parentConstructor, timers, index, msg) {
-		var start = A2(elm$core$List$take, index, timers);
-		var end = A2(elm$core$List$drop, index, timers);
-		if (end.b) {
-			var x = end.a;
-			var xs = end.b;
-			var updated = A2(author$project$Timer$updateState, msg, x);
-			return _Utils_Tuple2(
-				_Utils_ap(
-					start,
-					A2(elm$core$List$cons, updated.a, xs)),
-				A2(
-					elm$core$Platform$Cmd$map,
-					parentConstructor(index),
-					updated.b));
-		} else {
-			return _Utils_Tuple2(timers, elm$core$Platform$Cmd$none);
-		}
-	});
 var elm$core$List$unzip = function (pairs) {
 	var step = F2(
 		function (_n0, _n1) {
@@ -6476,6 +6561,190 @@ var elm$core$List$unzip = function (pairs) {
 		_Utils_Tuple2(_List_Nil, _List_Nil),
 		pairs);
 };
+var elm$core$Platform$Cmd$map = _Platform_map;
+var elm$core$Tuple$mapSecond = F2(
+	function (func, _n0) {
+		var x = _n0.a;
+		var y = _n0.b;
+		return _Utils_Tuple2(
+			x,
+			func(y));
+	});
+var author$project$Timer$forwardToIndex = F3(
+	function (msgConstr, timers, _n13) {
+		var index = _n13.a;
+		var nextChildIndex = _n13.b;
+		var start = A2(elm$core$List$take, index, timers);
+		var end = A2(elm$core$List$drop, index, timers);
+		if (end.b) {
+			var x = end.a;
+			var xs = end.b;
+			var _n15 = A2(
+				author$project$Timer$updateStateBase,
+				msgConstr(nextChildIndex),
+				x);
+			var updated = _n15.a;
+			var cmd = _n15.b;
+			return _Utils_Tuple2(
+				_Utils_ap(
+					start,
+					A2(elm$core$List$cons, updated, xs)),
+				elm$core$List$singleton(
+					A2(
+						elm$core$Platform$Cmd$map,
+						author$project$Timer$encloseMsg(index),
+						cmd)));
+		} else {
+			return _Utils_Tuple2(timers, _List_Nil);
+		}
+	});
+var author$project$Timer$groupUpdateState = F3(
+	function (msg, timerSpec, groupType) {
+		var exclusive = groupType.a;
+		var children = groupType.b;
+		var _default = _Utils_Tuple2(
+			_Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none),
+			_Utils_Tuple2(children, _List_Nil));
+		var _n2 = function () {
+			switch (msg.$) {
+				case 'Reset':
+					return _Utils_Tuple2(
+						author$project$Timer$resetTimerSpec(timerSpec),
+						elm$core$List$unzip(
+							A2(elm$core$List$map, author$project$Timer$resetTimerSpec, children)));
+				case 'Start':
+					var childIndex = msg.a;
+					if (childIndex.$ === 'Final') {
+						return _default;
+					} else {
+						var index = childIndex.a;
+						var nextChildIndex = childIndex.b;
+						var _n7 = function () {
+							if (!exclusive) {
+								return A3(
+									author$project$Timer$forwardToIndex,
+									author$project$Timer$Start,
+									children,
+									_Utils_Tuple2(index, nextChildIndex));
+							} else {
+								var start = A2(elm$core$List$take, index, children);
+								var end = A2(elm$core$List$drop, index, children);
+								if (end.b) {
+									var x = end.a;
+									var xs = end.b;
+									return A2(
+										elm$core$Tuple$mapSecond,
+										elm$core$List$map(
+											elm$core$Platform$Cmd$map(
+												author$project$Timer$encloseMsg(index))),
+										elm$core$List$unzip(
+											_Utils_ap(
+												A2(
+													elm$core$List$map,
+													author$project$Timer$updateStateBase(author$project$Timer$fullStop),
+													start),
+												A2(
+													elm$core$List$cons,
+													A2(
+														author$project$Timer$updateStateBase,
+														author$project$Timer$Start(nextChildIndex),
+														x),
+													A2(
+														elm$core$List$map,
+														author$project$Timer$updateStateBase(author$project$Timer$fullStop),
+														xs)))));
+								} else {
+									return _Utils_Tuple2(children, _List_Nil);
+								}
+							}
+						}();
+						var tempChildren = _n7.a;
+						var tempCmds = _n7.b;
+						return A2(
+							elm$core$List$any,
+							A2(elm$core$Basics$composeR, author$project$Timer$Timer, author$project$Timer$isRunning),
+							tempChildren) ? _Utils_Tuple2(
+							author$project$Timer$startTimerSpec(timerSpec),
+							_Utils_Tuple2(tempChildren, tempCmds)) : _default;
+					}
+				case 'Stop':
+					var childIndex = msg.a;
+					if (childIndex.$ === 'Final') {
+						return _Utils_Tuple2(
+							author$project$Timer$stopTimerSpec(timerSpec),
+							elm$core$List$unzip(
+								A2(
+									elm$core$List$map,
+									author$project$Timer$updateStateBase(author$project$Timer$fullStop),
+									children)));
+					} else {
+						var index = childIndex.a;
+						var nextChildIndex = childIndex.b;
+						var _n11 = A3(
+							author$project$Timer$forwardToIndex,
+							author$project$Timer$Stop,
+							children,
+							_Utils_Tuple2(index, nextChildIndex));
+						var tempChildren = _n11.a;
+						var tempCmds = _n11.b;
+						return (!A2(
+							elm$core$List$any,
+							A2(elm$core$Basics$composeR, author$project$Timer$Timer, author$project$Timer$isRunning),
+							tempChildren)) ? _Utils_Tuple2(
+							author$project$Timer$stopTimerSpec(timerSpec),
+							_Utils_Tuple2(tempChildren, tempCmds)) : _default;
+					}
+				default:
+					var posixTime = msg.a;
+					var childIndex = msg.b;
+					if (childIndex.$ === 'Final') {
+						return _Utils_Tuple2(
+							A2(author$project$Timer$updateTimerSpec, posixTime, timerSpec),
+							elm$core$List$unzip(
+								A2(
+									elm$core$List$map,
+									author$project$Timer$updateStateBase(
+										author$project$Timer$fullUpdate(posixTime)),
+									children)));
+					} else {
+						var index = childIndex.a;
+						var nextChildIndex = childIndex.b;
+						return _Utils_Tuple2(
+							_Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none),
+							A3(
+								author$project$Timer$forwardToIndex,
+								author$project$Timer$Update(posixTime),
+								children,
+								_Utils_Tuple2(index, nextChildIndex)));
+					}
+			}
+		}();
+		var _n3 = _n2.a;
+		var updatedMain = _n3.a;
+		var mainCmd = _n3.b;
+		var _n4 = _n2.b;
+		var updatedChildren = _n4.a;
+		var childCmds = _n4.b;
+		return _Utils_Tuple2(
+			_Utils_update(
+				updatedMain,
+				{
+					groupType: elm$core$Maybe$Just(
+						A2(author$project$Timer$GroupType, exclusive, updatedChildren))
+				}),
+			elm$core$Platform$Cmd$batch(
+				A2(elm$core$List$cons, mainCmd, childCmds)));
+	});
+var author$project$Timer$updateStateBase = F2(
+	function (msg, timerSpec) {
+		var _n0 = timerSpec.groupType;
+		if (_n0.$ === 'Nothing') {
+			return A2(author$project$Timer$simpleUpdateState, msg, timerSpec);
+		} else {
+			var group = _n0.a;
+			return A3(author$project$Timer$groupUpdateState, msg, timerSpec, group);
+		}
+	});
 var elm$core$Tuple$mapFirst = F2(
 	function (func, _n0) {
 		var x = _n0.a;
@@ -6484,6 +6753,48 @@ var elm$core$Tuple$mapFirst = F2(
 			func(x),
 			y);
 	});
+var author$project$Timer$updateState = F2(
+	function (msg, timer) {
+		var timerSpec = timer.a;
+		return A2(
+			elm$core$Tuple$mapFirst,
+			author$project$Timer$Timer,
+			A2(author$project$Timer$updateStateBase, msg, timerSpec));
+	});
+var author$project$Main$forwardToIndex = F3(
+	function (msg, timers, index) {
+		var start = A2(elm$core$List$take, index, timers);
+		var end = A2(elm$core$List$drop, index, timers);
+		if (end.b) {
+			var x = end.a;
+			var xs = end.b;
+			var _n1 = A2(author$project$Timer$updateState, msg, x);
+			var updated = _n1.a;
+			var cmd = _n1.b;
+			return _Utils_Tuple2(
+				_Utils_ap(
+					start,
+					A2(elm$core$List$cons, updated, xs)),
+				A2(
+					elm$core$Platform$Cmd$map,
+					author$project$Main$TimerCommand(index),
+					cmd));
+		} else {
+			return _Utils_Tuple2(timers, elm$core$Platform$Cmd$none);
+		}
+	});
+var author$project$Timer$TimerSpec = F3(
+	function (name, state, groupType) {
+		return {groupType: groupType, name: name, state: state};
+	});
+var author$project$Timer$newTimer = function (name) {
+	return author$project$Timer$Timer(
+		A3(
+			author$project$Timer$TimerSpec,
+			name,
+			author$project$Timer$Stopped(0),
+			elm$core$Maybe$Nothing));
+};
 var rundis$elm_bootstrap$Bootstrap$Modal$Show = {$: 'Show'};
 var rundis$elm_bootstrap$Bootstrap$Modal$shown = rundis$elm_bootstrap$Bootstrap$Modal$Show;
 var author$project$Main$update = F2(
@@ -6529,14 +6840,14 @@ var author$project$Main$update = F2(
 							model,
 							{now: cur_time, timers: timers});
 					},
-					A4(author$project$Timer$forwardToIndex, author$project$Main$TimerCommand, model.timers, index, timer_msg));
+					A3(author$project$Main$forwardToIndex, timer_msg, model.timers, index));
 			case 'Tick':
 				var cur_time = msg.a;
 				var _n2 = elm$core$List$unzip(
 					A2(
 						elm$core$List$map,
 						author$project$Timer$updateState(
-							author$project$Timer$Update(cur_time)),
+							author$project$Timer$fullUpdate(cur_time)),
 						model.timers));
 				var updated_timers = _n2.a;
 				var cmds = _n2.b;
@@ -6701,7 +7012,6 @@ var mdgriffith$elm_ui$Internal$Model$AsEl = {$: 'AsEl'};
 var mdgriffith$elm_ui$Internal$Model$asEl = mdgriffith$elm_ui$Internal$Model$AsEl;
 var mdgriffith$elm_ui$Internal$Model$AsParagraph = {$: 'AsParagraph'};
 var mdgriffith$elm_ui$Internal$Model$asParagraph = mdgriffith$elm_ui$Internal$Model$AsParagraph;
-var elm$core$Basics$not = _Basics_not;
 var elm$json$Json$Decode$map = _Json_map1;
 var elm$json$Json$Decode$map2 = _Json_map2;
 var elm$json$Json$Decode$succeed = _Json_succeed;
@@ -6773,6 +7083,10 @@ var elm$core$Set$Set_elm_builtin = function (a) {
 	return {$: 'Set_elm_builtin', a: a};
 };
 var elm$core$Set$empty = elm$core$Set$Set_elm_builtin(elm$core$Dict$empty);
+var elm$core$Tuple$second = function (_n0) {
+	var y = _n0.b;
+	return y;
+};
 var elm$core$Set$insert = F2(
 	function (key, _n0) {
 		var dict = _n0.a;
@@ -6983,14 +7297,6 @@ var elm$core$Maybe$map = F2(
 		} else {
 			return elm$core$Maybe$Nothing;
 		}
-	});
-var elm$core$Tuple$mapSecond = F2(
-	function (func, _n0) {
-		var x = _n0.a;
-		var y = _n0.b;
-		return _Utils_Tuple2(
-			x,
-			func(y));
 	});
 var mdgriffith$elm_ui$Internal$Model$Property = F2(
 	function (a, b) {
@@ -9231,27 +9537,6 @@ var elm$json$Json$Encode$object = function (pairs) {
 var elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
-	});
-var elm$core$List$any = F2(
-	function (isOkay, list) {
-		any:
-		while (true) {
-			if (!list.b) {
-				return false;
-			} else {
-				var x = list.a;
-				var xs = list.b;
-				if (isOkay(x)) {
-					return true;
-				} else {
-					var $temp$isOkay = isOkay,
-						$temp$list = xs;
-					isOkay = $temp$isOkay;
-					list = $temp$list;
-					continue any;
-				}
-			}
-		}
 	});
 var mdgriffith$elm_ui$Internal$Model$fontName = function (font) {
 	switch (font.$) {
@@ -13398,40 +13683,6 @@ var author$project$CommonElements$timerSegmentBasicAttrib = _List_fromArray(
 		mdgriffith$elm_ui$Element$padding(author$project$CommonElements$defaultPadding)
 	]);
 var mdgriffith$elm_ui$Element$fillPortion = mdgriffith$elm_ui$Internal$Model$Fill;
-var mdgriffith$elm_ui$Internal$Flag$shadows = mdgriffith$elm_ui$Internal$Flag$flag(19);
-var mdgriffith$elm_ui$Internal$Model$boxShadowClass = function (shadow) {
-	return elm$core$String$concat(
-		_List_fromArray(
-			[
-				shadow.inset ? 'box-inset' : 'box-',
-				mdgriffith$elm_ui$Internal$Model$floatClass(shadow.offset.a) + 'px',
-				mdgriffith$elm_ui$Internal$Model$floatClass(shadow.offset.b) + 'px',
-				mdgriffith$elm_ui$Internal$Model$floatClass(shadow.blur) + 'px',
-				mdgriffith$elm_ui$Internal$Model$floatClass(shadow.size) + 'px',
-				mdgriffith$elm_ui$Internal$Model$formatColorClass(shadow.color)
-			]));
-};
-var mdgriffith$elm_ui$Element$Border$shadow = function (almostShade) {
-	var shade = {blur: almostShade.blur, color: almostShade.color, inset: false, offset: almostShade.offset, size: almostShade.size};
-	return A2(
-		mdgriffith$elm_ui$Internal$Model$StyleClass,
-		mdgriffith$elm_ui$Internal$Flag$shadows,
-		A3(
-			mdgriffith$elm_ui$Internal$Model$Single,
-			mdgriffith$elm_ui$Internal$Model$boxShadowClass(shade),
-			'box-shadow',
-			mdgriffith$elm_ui$Internal$Model$formatBoxShadow(shade)));
-};
-var mdgriffith$elm_ui$Element$Border$glow = F2(
-	function (clr, size) {
-		return mdgriffith$elm_ui$Element$Border$shadow(
-			{
-				blur: size * 2,
-				color: clr,
-				offset: _Utils_Tuple2(0, 0),
-				size: size
-			});
-	});
 var author$project$CommonElements$timerSegment = F4(
 	function (elem1, elem2, elem3, elem4) {
 		return A2(
@@ -13439,11 +13690,7 @@ var author$project$CommonElements$timerSegment = F4(
 			_List_fromArray(
 				[
 					A2(mdgriffith$elm_ui$Element$paddingXY, 0, author$project$CommonElements$defaultPadding),
-					mdgriffith$elm_ui$Element$width(mdgriffith$elm_ui$Element$fill),
-					A2(
-					mdgriffith$elm_ui$Element$Border$glow,
-					A3(mdgriffith$elm_ui$Element$rgb255, 119, 136, 153),
-					12.0)
+					mdgriffith$elm_ui$Element$width(mdgriffith$elm_ui$Element$fill)
 				]),
 			_List_fromArray(
 				[
@@ -13501,9 +13748,6 @@ var author$project$CommonElements$timerSegment = F4(
 					elem4)
 				]));
 	});
-var author$project$Timer$Reset = {$: 'Reset'};
-var author$project$Timer$Start = {$: 'Start'};
-var author$project$Timer$Stop = {$: 'Stop'};
 var elm$core$String$cons = _String_cons;
 var elm$core$String$fromChar = function (_char) {
 	return A2(elm$core$String$cons, _char, '');
@@ -13549,36 +13793,27 @@ var author$project$Timer$displayTime = F2(
 	function (cur_time, timer) {
 		return author$project$Timer$millisToString(
 			function () {
-				var _n0 = timer.state;
-				switch (_n0.$) {
+				var timerSpec = timer.a;
+				var _n1 = timerSpec.state;
+				switch (_n1.$) {
 					case 'Stopped':
-						var interval = _n0.a;
+						var interval = _n1.a;
 						return interval;
 					case 'Starting':
-						var interval = _n0.a;
+						var interval = _n1.a;
 						return interval;
 					case 'Running':
-						var interval = _n0.a;
-						var start = _n0.b;
+						var interval = _n1.a;
+						var start = _n1.b;
 						return A3(author$project$Timer$updatedTime, cur_time, start, interval);
 					default:
-						var interval = _n0.a;
-						var start = _n0.b;
+						var interval = _n1.a;
+						var start = _n1.b;
 						return A3(author$project$Timer$updatedTime, cur_time, start, interval);
 				}
 			}());
 	});
-var author$project$Timer$isRunning = function (timer) {
-	var _n0 = timer.state;
-	switch (_n0.$) {
-		case 'Stopped':
-			return false;
-		case 'Stopping':
-			return false;
-		default:
-			return true;
-	}
-};
+var author$project$Timer$fullStart = author$project$Timer$Start(author$project$Timer$Final);
 var mdgriffith$elm_ui$Internal$Model$AlignX = function (a) {
 	return {$: 'AlignX', a: a};
 };
@@ -13589,45 +13824,49 @@ var mdgriffith$elm_ui$Internal$Model$AlignY = function (a) {
 };
 var mdgriffith$elm_ui$Internal$Model$CenterY = {$: 'CenterY'};
 var mdgriffith$elm_ui$Element$centerY = mdgriffith$elm_ui$Internal$Model$AlignY(mdgriffith$elm_ui$Internal$Model$CenterY);
-var author$project$SimpleTimer$view = F2(
-	function (cur_time, timer) {
-		return A4(
-			author$project$CommonElements$timerSegment,
-			A2(
-				mdgriffith$elm_ui$Element$Input$button,
-				_List_fromArray(
-					[mdgriffith$elm_ui$Element$centerX, mdgriffith$elm_ui$Element$centerY]),
-				author$project$Timer$isRunning(timer) ? {
-					label: mdgriffith$elm_ui$Element$text('Stop'),
-					onPress: elm$core$Maybe$Just(author$project$Timer$Stop)
-				} : {
-					label: mdgriffith$elm_ui$Element$text('Start'),
-					onPress: elm$core$Maybe$Just(author$project$Timer$Start)
-				}),
-			A2(
-				mdgriffith$elm_ui$Element$el,
-				_List_fromArray(
-					[mdgriffith$elm_ui$Element$centerY]),
-				mdgriffith$elm_ui$Element$text(timer.name)),
-			A2(
-				mdgriffith$elm_ui$Element$el,
-				_List_fromArray(
-					[mdgriffith$elm_ui$Element$centerY]),
-				mdgriffith$elm_ui$Element$text(
-					A2(author$project$Timer$displayTime, cur_time, timer))),
-			A2(
-				mdgriffith$elm_ui$Element$Input$button,
-				_List_fromArray(
-					[mdgriffith$elm_ui$Element$centerX, mdgriffith$elm_ui$Element$centerY]),
-				{
-					label: mdgriffith$elm_ui$Element$text('Reset'),
-					onPress: elm$core$Maybe$Just(author$project$Timer$Reset)
-				}));
+var mdgriffith$elm_ui$Internal$Model$Empty = {$: 'Empty'};
+var mdgriffith$elm_ui$Element$none = mdgriffith$elm_ui$Internal$Model$Empty;
+var author$project$Timer$view = F2(
+	function (posixTime, timer) {
+		var timerSpec = timer.a;
+		var _n1 = timerSpec.groupType;
+		if (_n1.$ === 'Nothing') {
+			return A4(
+				author$project$CommonElements$timerSegment,
+				A2(
+					mdgriffith$elm_ui$Element$Input$button,
+					_List_fromArray(
+						[mdgriffith$elm_ui$Element$centerX, mdgriffith$elm_ui$Element$centerY]),
+					author$project$Timer$isRunning(timer) ? {
+						label: mdgriffith$elm_ui$Element$text('Stop'),
+						onPress: elm$core$Maybe$Just(author$project$Timer$fullStop)
+					} : {
+						label: mdgriffith$elm_ui$Element$text('Start'),
+						onPress: elm$core$Maybe$Just(author$project$Timer$fullStart)
+					}),
+				A2(
+					mdgriffith$elm_ui$Element$el,
+					_List_fromArray(
+						[mdgriffith$elm_ui$Element$centerY]),
+					mdgriffith$elm_ui$Element$text(timerSpec.name)),
+				A2(
+					mdgriffith$elm_ui$Element$el,
+					_List_fromArray(
+						[mdgriffith$elm_ui$Element$centerY]),
+					mdgriffith$elm_ui$Element$text(
+						A2(author$project$Timer$displayTime, posixTime, timer))),
+				A2(
+					mdgriffith$elm_ui$Element$Input$button,
+					_List_fromArray(
+						[mdgriffith$elm_ui$Element$centerX, mdgriffith$elm_ui$Element$centerY]),
+					{
+						label: mdgriffith$elm_ui$Element$text('Reset'),
+						onPress: elm$core$Maybe$Just(author$project$Timer$Reset)
+					}));
+		} else {
+			return mdgriffith$elm_ui$Element$none;
+		}
 	});
-var elm$core$List$singleton = function (value) {
-	return _List_fromArray(
-		[value]);
-};
 var mdgriffith$elm_ui$Element$column = F2(
 	function (attrs, children) {
 		return A4(
@@ -13903,7 +14142,6 @@ var mdgriffith$elm_ui$Element$layoutWith = F3(
 var mdgriffith$elm_ui$Element$layout = mdgriffith$elm_ui$Element$layoutWith(
 	{options: _List_Nil});
 var elm$virtual_dom$VirtualDom$map = _VirtualDom_map;
-var mdgriffith$elm_ui$Internal$Model$Empty = {$: 'Empty'};
 var mdgriffith$elm_ui$Internal$Model$map = F2(
 	function (fn, el) {
 		switch (el.$) {
@@ -13959,7 +14197,7 @@ var author$project$Main$view = function (model) {
 									return A2(
 										mdgriffith$elm_ui$Element$map,
 										author$project$Main$TimerCommand(i),
-										A2(author$project$SimpleTimer$view, model.now, t));
+										A2(author$project$Timer$view, model.now, t));
 								}),
 							model.timers))))),
 		title: 'Elm Timecard'

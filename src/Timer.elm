@@ -1,4 +1,4 @@
-module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState, forwardToIndex)
+module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState, view, fullStart, fullStop, fullUpdate)
 
 
 import Time
@@ -6,6 +6,9 @@ import Time.Extra as Time
 import Task
 import Set
 import Helpers exposing (..)
+import Element exposing (..)
+import Element.Input as Input
+import CommonElements exposing (..)
 
 
 -- MODEL
@@ -42,6 +45,18 @@ type Msg =
   | Stop ChildIndex
   | Reset
   | Update Time.Posix ChildIndex
+
+fullStart : Msg
+fullStart =
+  Start Final
+
+fullStop : Msg
+fullStop =
+  Stop Final
+
+fullUpdate : Time.Posix -> Msg
+fullUpdate posixTime =
+  Update posixTime Final
 
 type ChildIndex =
     Final
@@ -142,9 +157,9 @@ groupUpdateState msg timerSpec groupType =
                           in
                             case end of
                               x::xs ->
-                                List.map (updateStateBase (Stop Final)) start
+                                List.map (updateStateBase fullStop) start
                                 ++ updateStateBase (Start nextChildIndex) x
-                                :: List.map (updateStateBase (Stop Final)) xs
+                                :: List.map (updateStateBase fullStop) xs
                                 |> List.unzip
                                 |> Tuple.mapSecond (List.map (Cmd.map (encloseMsg index)))
 
@@ -159,7 +174,7 @@ groupUpdateState msg timerSpec groupType =
               case childIndex of
                 Final ->
                   ( stopTimerSpec timerSpec
-                  , List.map (updateStateBase (Stop Final)) children |> List.unzip
+                  , List.map (updateStateBase fullStop) children |> List.unzip
                   )
 
                 Child index nextChildIndex ->
@@ -174,7 +189,7 @@ groupUpdateState msg timerSpec groupType =
               case childIndex of
                 Final ->
                   ( updateTimerSpec posixTime timerSpec
-                  , List.map (updateStateBase (Update posixTime Final)) children |> List.unzip
+                  , List.map (updateStateBase (fullUpdate posixTime)) children |> List.unzip
                   )
 
                 Child index nextChildIndex ->
@@ -296,20 +311,23 @@ millisToString millis =
     ++ "." ++ (String.fromInt centis  |> padZero)
 
 
--- forwardToIndex : (Int -> Msg -> parent) -> List Timer -> Int -> Msg -> (List Timer, Cmd parent)
--- forwardToIndex parentConstructor timers index msg =
---   let
---     start = List.take index timers
---     end   = List.drop index timers
---   in
---     case end of
---       x::xs ->
---         let
---           updated  = updateState msg x
---         in
---           ( start ++ Tuple.first updated :: xs
---           , Cmd.map (parentConstructor index) (Tuple.second updated)
---           )
---
---       _ ->
---         ( timers, Cmd.none )
+-- VIEW
+
+view : Time.Posix -> Timer -> Element Msg
+view posixTime timer =
+  case timer of
+    Timer timerSpec ->
+      case timerSpec.groupType of
+        Nothing ->
+          timerSegment
+            (Input.button [ centerX, centerY ] <|
+              if isRunning timer then
+                { onPress = Just fullStop, label = text "Stop" }
+              else
+                { onPress = Just fullStart, label = text "Start" })
+            (el [ centerY ] <| text timerSpec.name)
+            (el [ centerY ] <| text <| displayTime posixTime timer)
+            (Input.button [ centerX, centerY ]
+              { onPress = Just Reset, label = text "Reset" })
+        _ ->
+          none

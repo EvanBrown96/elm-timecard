@@ -6,9 +6,6 @@ import Time
 import Time.Extra as Time
 import Task
 import Timer exposing (Timer)
-import SimpleTimer exposing (SimpleTimer)
-import TimerGroup exposing (TimerGroup)
-import GeneralizedTimer exposing (GeneralizedTimer)
 import Bootstrap.Modal as Modal
 import Element exposing (..)
 import Element.Input as Input
@@ -29,7 +26,7 @@ type alias Model =
   { now             : Time.Posix
   , addModalVisible : Modal.Visibility
   , addTimerText    : String
-  , timers          : List GeneralizedTimer
+  , timers          : List Timer
   }
 
 init : () -> (Model, Cmd Msg)
@@ -46,7 +43,7 @@ type Msg =
   | ShowAddModal
   | HideAddModal
   | UpdateTimerText String
-  | TimerCommand Int GeneralizedTimer.Msg
+  | TimerCommand Int Timer.Msg
   | Tick Time.Posix
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -55,7 +52,7 @@ update msg model =
     AddTimer ->
       ( { model | addModalVisible = Modal.hidden
                 , addTimerText    = ""
-                , timers          = model.timers ++ [ GeneralizedTimer.SimpleTimer <| Timer.newTimer model.addTimerText ]
+                , timers          = model.timers ++ [ Timer.newTimer model.addTimerText ]
         }
       , Cmd.none
       )
@@ -67,17 +64,17 @@ update msg model =
       let
         cur_time =
           case timer_msg of
-            Timer.Update new_time ->
+            Timer.Update new_time _ ->
               new_time
             _ ->
               model.now
       in
-        Timer.forwardToIndex TimerCommand model.timers index timer_msg
+        forwardToIndex timer_msg model.timers index
         |> Tuple.mapFirst (\timers -> { model | now = cur_time, timers = timers })
 
     Tick cur_time ->
       let
-        (updated_timers, cmds) = List.map (Timer.updateState (Timer.Update cur_time)) model.timers
+        (updated_timers, cmds) = List.map (Timer.updateState (Timer.fullUpdate cur_time)) model.timers
                                  |> List.unzip
       in
         ( { model | now    = cur_time
@@ -97,6 +94,23 @@ update msg model =
         }
       , Cmd.none )
 
+forwardToIndex : Timer.Msg -> List Timer -> Int -> ( List Timer, Cmd Msg )
+forwardToIndex msg timers index =
+  let
+    start = List.take index timers
+    end = List.drop index timers
+  in
+    case end of
+      x::xs ->
+        let
+          ( updated, cmd ) = Timer.updateState msg x
+        in
+          ( start ++ updated :: xs
+          , Cmd.map (TimerCommand index) cmd
+          )
+      _ ->
+        ( timers, Cmd.none )
+
 
 -- SUBSCRIPTIONS
 
@@ -112,7 +126,7 @@ view model =
   { title = "Elm Timecard"
   , body = List.singleton <| layout [] <|
       column [ centerX, width (px 800) ] <| buttonsRow model :: List.indexedMap
-        (\i t -> SimpleTimer.view model.now t |> Element.map (TimerCommand i)) model.timers
+        (\i t -> Timer.view model.now t |> Element.map (TimerCommand i)) model.timers
   }
 
 buttonsRow : Model -> Element Msg
