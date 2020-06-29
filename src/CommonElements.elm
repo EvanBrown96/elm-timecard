@@ -1,4 +1,4 @@
-module CommonElements exposing (timerSegment)
+module CommonElements exposing (timerSegment, offsetBox)
 
 import Element exposing (..)
 import Element.Background as BG
@@ -56,3 +56,7 @@ timerSegment elem1 elem2 elem3 elem4 =
     , el (timerSegmentBasicAttrib ++ middleBorder ++ [ primaryColor, width <| fillPortion 1]) elem3
     , el (timerSegmentBasicAttrib ++ rightBorder ++ [ secondaryColor, width <| (px rowHeight) ]) elem4
     ]
+
+offsetBox : Element a
+offsetBox =
+  el [ width <| px rowHeight, height fill ] none

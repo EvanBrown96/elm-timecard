@@ -329,5 +329,44 @@ view posixTime timer =
             (el [ centerY ] <| text <| displayTime posixTime timer)
             (Input.button [ centerX, centerY ]
               { onPress = Just Reset, label = text "Reset" })
-        _ ->
-          none
+
+        Just (GroupType _ children) ->
+          column []
+            (timerSegment
+              (if isRunning timer then
+                Input.button [ centerX, centerY ] <|
+                  { onPress = Just fullStop, label = text "Stop" }
+               else none)
+              (el [ centerY ] <| text timerSpec.name )
+              (el [ centerY ] <| text <| displayTime posixTime timer)
+              (Input.button [ centerX, centerY ]
+                { onPress = Just Reset, label = text "Reset" })
+            :: List.map (\t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) ]) children)
+
+viewChild : Time.Posix -> Timer -> Element Msg
+viewChild posixTime timer =
+  case timer of
+    Timer timerSpec ->
+      case timerSpec.groupType of
+        Nothing ->
+          timerSegment
+            (Input.button [ centerX, centerY ] <|
+              if isRunning timer then
+                { onPress = Just fullStop, label = text "Stop" }
+              else
+                { onPress = Just fullStart, label = text "Start" })
+            (el [ centerY ] <| text timerSpec.name)
+            (el [ centerY ] <| text <| displayTime posixTime timer)
+            none
+
+        Just (GroupType _ children) ->
+          column []
+            (timerSegment
+              (if isRunning timer then
+                Input.button [ centerX, centerY ] <|
+                  { onPress = Just fullStop, label = text "Stop" }
+               else none)
+              (el [ centerY ] <| text timerSpec.name )
+              (el [ centerY ] <| text <| displayTime posixTime timer)
+              none
+            :: List.map (\t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) ]) children)
