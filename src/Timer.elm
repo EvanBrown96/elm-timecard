@@ -1,4 +1,4 @@
-module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState, view, fullStart, fullStop, fullUpdate)
+module Timer exposing (Millis, Timer, newTimer, displayTime, isRunning, Msg(..), updateState, view, fullStart, fullStop, fullUpdate, testInitial)
 
 
 import Time
@@ -9,6 +9,18 @@ import Helpers exposing (..)
 import Element exposing (..)
 import Element.Input as Input
 import CommonElements exposing (..)
+
+
+
+testInitial =
+  Timer <| TimerSpec "Collins" (Stopped 0) <|
+    Just <| GroupType True
+      [ TimerSpec "Work Package" (Stopped 0) Nothing
+      , TimerSpec "General Time" (Stopped 0) Nothing
+      , TimerSpec "Training" (Stopped 0) Nothing
+      , TimerSpec "Intern Work" (Stopped 0) Nothing
+      ]
+
 
 
 -- MODEL
@@ -341,10 +353,10 @@ view posixTime timer =
               (el [ centerY ] <| text <| displayTime posixTime timer)
               (Input.button [ centerX, centerY ]
                 { onPress = Just Reset, label = text "Reset" })
-            :: List.map (\t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) ]) children)
+            :: List.indexedMap (\i t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) (Child i Final) ]) children)
 
-viewChild : Time.Posix -> Timer -> Element Msg
-viewChild posixTime timer =
+viewChild : Time.Posix -> Timer -> ChildIndex -> Element Msg
+viewChild posixTime timer childIndex =
   case timer of
     Timer timerSpec ->
       case timerSpec.groupType of
@@ -352,9 +364,9 @@ viewChild posixTime timer =
           timerSegment
             (Input.button [ centerX, centerY ] <|
               if isRunning timer then
-                { onPress = Just fullStop, label = text "Stop" }
+                { onPress = Just <| Stop childIndex, label = text "Stop" }
               else
-                { onPress = Just fullStart, label = text "Start" })
+                { onPress = Just <| Start childIndex, label = text "Start" })
             (el [ centerY ] <| text timerSpec.name)
             (el [ centerY ] <| text <| displayTime posixTime timer)
             none
@@ -364,9 +376,9 @@ viewChild posixTime timer =
             (timerSegment
               (if isRunning timer then
                 Input.button [ centerX, centerY ] <|
-                  { onPress = Just fullStop, label = text "Stop" }
+                  { onPress = Just <| Stop childIndex, label = text "Stop" }
                else none)
               (el [ centerY ] <| text timerSpec.name )
               (el [ centerY ] <| text <| displayTime posixTime timer)
               none
-            :: List.map (\t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) ]) children)
+            :: List.indexedMap (\i t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) (Child i childIndex) ]) children)

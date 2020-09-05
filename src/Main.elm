@@ -31,7 +31,7 @@ type alias Model =
 
 init : () -> (Model, Cmd Msg)
 init flags =
-  ( Model (Time.millisToPosix 0) Modal.hidden "" []
+  ( Model (Time.millisToPosix 0) Modal.hidden "" [ Timer.testInitial ]
   , Cmd.none
   )
 
