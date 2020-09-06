@@ -326,59 +326,42 @@ millisToString millis =
 -- VIEW
 
 view : Time.Posix -> Timer -> Element Msg
-view posixTime timer =
+view =
+  viewGeneral Final
+
+viewGeneral : ChildIndex -> Time.Posix -> Timer -> Element Msg
+viewGeneral childIndex posixTime timer =
   case timer of
     Timer timerSpec ->
-      case timerSpec.groupType of
-        Nothing ->
-          timerSegment
-            (Input.button [ centerX, centerY ] <|
-              if isRunning timer then
-                { onPress = Just fullStop, label = text "Stop" }
-              else
-                { onPress = Just fullStart, label = text "Start" })
-            (el [ centerY ] <| text timerSpec.name)
-            (el [ centerY ] <| text <| displayTime posixTime timer)
-            (Input.button [ centerX, centerY ]
-              { onPress = Just Reset, label = text "Reset" })
-
-        Just (GroupType _ children) ->
-          column []
-            (timerSegment
-              (if isRunning timer then
-                Input.button [ centerX, centerY ] <|
-                  { onPress = Just fullStop, label = text "Stop" }
-               else none)
-              (el [ centerY ] <| text timerSpec.name )
-              (el [ centerY ] <| text <| displayTime posixTime timer)
-              (Input.button [ centerX, centerY ]
-                { onPress = Just Reset, label = text "Reset" })
-            :: List.indexedMap (\i t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) (Child i Final) ]) children)
-
-viewChild : Time.Posix -> Timer -> ChildIndex -> Element Msg
-viewChild posixTime timer childIndex =
-  case timer of
-    Timer timerSpec ->
-      case timerSpec.groupType of
-        Nothing ->
-          timerSegment
-            (Input.button [ centerX, centerY ] <|
-              if isRunning timer then
-                { onPress = Just <| Stop childIndex, label = text "Stop" }
-              else
-                { onPress = Just <| Start childIndex, label = text "Start" })
-            (el [ centerY ] <| text timerSpec.name)
-            (el [ centerY ] <| text <| displayTime posixTime timer)
-            none
-
-        Just (GroupType _ children) ->
-          column []
-            (timerSegment
-              (if isRunning timer then
-                Input.button [ centerX, centerY ] <|
-                  { onPress = Just <| Stop childIndex, label = text "Stop" }
-               else none)
-              (el [ centerY ] <| text timerSpec.name )
-              (el [ centerY ] <| text <| displayTime posixTime timer)
+      let
+        stopButtonRec = { onPress = Just <| Stop childIndex, label = text "Stop" }
+        startButtonRec = { onPress = Just <| Start childIndex, label = text "Start" }
+        nameText = el [ centerY ] <| text timerSpec.name
+        timeText = el [ centerY ] <| text <| displayTime posixTime timer
+        resetButton =
+          case childIndex of
+            Final ->
+              Input.button [ centerX, centerY ]
+                { onPress = Just Reset, label = text "Reset" }
+            _ ->
               none
-            :: List.indexedMap (\i t -> row [] [ CommonElements.offsetBox, viewChild posixTime (Timer t) (Child i childIndex) ]) children)
+      in
+        case timerSpec.groupType of
+          Nothing ->
+            timerSegment
+              (Input.button [ centerX, centerY ] <|
+                if isRunning timer then stopButtonRec else startButtonRec)
+              nameText
+              timeText
+              resetButton
+
+          Just (GroupType _ children) ->
+            column [ width fill ]
+              (timerSegment
+                (if isRunning timer then
+                  Input.button [ centerX, centerY ] stopButtonRec
+                else none)
+                nameText
+                timeText
+                resetButton
+              :: List.indexedMap (\i t -> row [ width fill ] [ CommonElements.offsetBox, viewGeneral (Child i childIndex) posixTime (Timer t) ]) children)
