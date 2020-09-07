@@ -125,7 +125,7 @@ view : Model -> Browser.Document Msg
 view model =
   { title = "Elm Timecard"
   , body = List.singleton <| layout [] <|
-      column [ centerX, width (px 800), explain Debug.todo ] <| buttonsRow model :: List.indexedMap
+      column [ centerX, width (px 800) ] <| buttonsRow model :: List.indexedMap
         (\i t -> Timer.view model.now t |> Element.map (TimerCommand i)) model.timers
   }
 

@@ -268,11 +268,9 @@ stopTimerSpec timerSpec =
     _ ->
       ( timerSpec, Cmd.none )
 
-
 resetTimerSpec : TimerSpec -> ( TimerSpec, Cmd Msg )
 resetTimerSpec timerSpec =
     ( { timerSpec | state = Stopped 0 }, Cmd.none )
-
 
 
 -- HELPERS
@@ -337,7 +335,7 @@ viewGeneral childIndex posixTime timer =
         stopButtonRec = { onPress = Just <| Stop childIndex, label = text "Stop" }
         startButtonRec = { onPress = Just <| Start childIndex, label = text "Start" }
         nameText = el [ centerY ] <| text timerSpec.name
-        timeText = el [ centerY ] <| text <| displayTime posixTime timer
+        timeText = el [ centerY, alignRight ] <| text <| displayTime posixTime timer
         resetButton =
           case childIndex of
             Final ->
