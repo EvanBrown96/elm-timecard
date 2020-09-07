@@ -5510,6 +5510,14 @@ var author$project$Main$TimerCommand = F2(
 	function (a, b) {
 		return {$: 'TimerCommand', a: a, b: b};
 	});
+var author$project$Timer$AddChild = F2(
+	function (a, b) {
+		return {$: 'AddChild', a: a, b: b};
+	});
+var author$project$Timer$Remove = F2(
+	function (a, b) {
+		return {$: 'Remove', a: a, b: b};
+	});
 var author$project$Timer$Start = function (a) {
 	return {$: 'Start', a: a};
 };
@@ -5538,12 +5546,26 @@ var author$project$Timer$encloseMsg = F2(
 					A2(author$project$Timer$Child, index, childIndex));
 			case 'Reset':
 				return author$project$Timer$Reset;
-			default:
+			case 'Update':
 				var posixTime = msg.a;
 				var childIndex = msg.b;
 				return A2(
 					author$project$Timer$Update,
 					posixTime,
+					A2(author$project$Timer$Child, index, childIndex));
+			case 'AddChild':
+				var name = msg.a;
+				var childIndex = msg.b;
+				return A2(
+					author$project$Timer$AddChild,
+					name,
+					A2(author$project$Timer$Child, index, childIndex));
+			default:
+				var removeIndex = msg.a;
+				var childIndex = msg.b;
+				return A2(
+					author$project$Timer$Remove,
+					removeIndex,
 					A2(author$project$Timer$Child, index, childIndex));
 		}
 	});
@@ -6378,6 +6400,10 @@ var author$project$Timer$updateTimerSpec = F2(
 				return _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none);
 		}
 	});
+var elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
 var author$project$Timer$simpleUpdateState = F2(
 	function (msg, timerSpec) {
 		var _default = _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none);
@@ -6398,7 +6424,7 @@ var author$project$Timer$simpleUpdateState = F2(
 				}
 			case 'Reset':
 				return author$project$Timer$resetTimerSpec(timerSpec);
-			default:
+			case 'Update':
 				var posixTime = msg.a;
 				var childIndex = msg.b;
 				if (childIndex.$ === 'Final') {
@@ -6406,6 +6432,31 @@ var author$project$Timer$simpleUpdateState = F2(
 				} else {
 					return _default;
 				}
+			case 'AddChild':
+				var name = msg.a;
+				var childIndex = msg.b;
+				if (childIndex.$ === 'Final') {
+					return _Utils_Tuple2(
+						_Utils_update(
+							timerSpec,
+							{
+								groupType: elm$core$Maybe$Just(
+									A2(
+										author$project$Timer$GroupType,
+										false,
+										elm$core$List$singleton(
+											A3(
+												author$project$Timer$TimerSpec,
+												name,
+												author$project$Timer$Stopped(0),
+												elm$core$Maybe$Nothing))))
+							}),
+						elm$core$Platform$Cmd$none);
+				} else {
+					return _default;
+				}
+			default:
+				return _default;
 		}
 	});
 var elm$core$Basics$not = _Basics_not;
@@ -6451,10 +6502,6 @@ var elm$core$List$drop = F2(
 			}
 		}
 	});
-var elm$core$List$singleton = function (value) {
-	return _List_fromArray(
-		[value]);
-};
 var elm$core$List$takeReverse = F3(
 	function (n, list, kept) {
 		takeReverse:
@@ -6608,20 +6655,20 @@ var elm$core$Tuple$mapSecond = F2(
 			func(y));
 	});
 var author$project$Timer$forwardToIndex = F3(
-	function (msgConstr, timers, _n13) {
-		var index = _n13.a;
-		var nextChildIndex = _n13.b;
+	function (msgConstr, timers, _n16) {
+		var index = _n16.a;
+		var nextChildIndex = _n16.b;
 		var start = A2(elm$core$List$take, index, timers);
 		var end = A2(elm$core$List$drop, index, timers);
 		if (end.b) {
 			var x = end.a;
 			var xs = end.b;
-			var _n15 = A2(
+			var _n18 = A2(
 				author$project$Timer$updateStateBase,
 				msgConstr(nextChildIndex),
 				x);
-			var updated = _n15.a;
-			var cmd = _n15.b;
+			var updated = _n18.a;
+			var cmd = _n18.b;
 			return _Utils_Tuple2(
 				_Utils_ap(
 					start,
@@ -6731,7 +6778,7 @@ var author$project$Timer$groupUpdateState = F3(
 							author$project$Timer$stopTimerSpec(timerSpec),
 							_Utils_Tuple2(tempChildren, tempCmds)) : _default;
 					}
-				default:
+				case 'Update':
 					var posixTime = msg.a;
 					var childIndex = msg.b;
 					if (childIndex.$ === 'Final') {
@@ -6753,6 +6800,63 @@ var author$project$Timer$groupUpdateState = F3(
 								author$project$Timer$Update(posixTime),
 								children,
 								_Utils_Tuple2(index, nextChildIndex)));
+					}
+				case 'AddChild':
+					var name = msg.a;
+					var childIndex = msg.b;
+					if (childIndex.$ === 'Final') {
+						return _Utils_Tuple2(
+							_Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none),
+							_Utils_Tuple2(
+								_Utils_ap(
+									children,
+									elm$core$List$singleton(
+										A3(
+											author$project$Timer$TimerSpec,
+											name,
+											author$project$Timer$Stopped(0),
+											elm$core$Maybe$Nothing))),
+								_List_Nil));
+					} else {
+						var index = childIndex.a;
+						var nextChildIndex = childIndex.b;
+						return _Utils_Tuple2(
+							_Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none),
+							A3(
+								author$project$Timer$forwardToIndex,
+								author$project$Timer$AddChild(name),
+								children,
+								_Utils_Tuple2(index, nextChildIndex)));
+					}
+				default:
+					var removeIndex = msg.a;
+					var childIndex = msg.b;
+					if (childIndex.$ === 'Final') {
+						var start = A2(elm$core$List$take, removeIndex, children);
+						var end = A2(elm$core$List$drop, removeIndex + 1, children);
+						var tempChildren = _Utils_ap(start, end);
+						return _Utils_Tuple2(
+							(!A2(
+								elm$core$List$any,
+								A2(elm$core$Basics$composeR, author$project$Timer$Timer, author$project$Timer$isRunning),
+								tempChildren)) ? author$project$Timer$stopTimerSpec(timerSpec) : _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none),
+							_Utils_Tuple2(tempChildren, _List_Nil));
+					} else {
+						var index = childIndex.a;
+						var nextChildIndex = childIndex.b;
+						var _n15 = A3(
+							author$project$Timer$forwardToIndex,
+							author$project$Timer$Remove(removeIndex),
+							children,
+							_Utils_Tuple2(index, nextChildIndex));
+						var tempChildren = _n15.a;
+						var tempCmds = _n15.b;
+						return _Utils_Tuple2(
+							(!A2(
+								elm$core$List$any,
+								A2(elm$core$Basics$composeR, author$project$Timer$Timer, author$project$Timer$isRunning),
+								tempChildren)) ? author$project$Timer$stopTimerSpec(timerSpec) : _Utils_Tuple2(timerSpec, elm$core$Platform$Cmd$none),
+							_Utils_Tuple2(tempChildren, tempCmds));
 					}
 			}
 		}();

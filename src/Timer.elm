@@ -57,6 +57,8 @@ type Msg =
   | Stop ChildIndex
   | Reset
   | Update Time.Posix ChildIndex
+  | AddChild String ChildIndex
+  | Remove Int ChildIndex
 
 fullStart : Msg
 fullStart =
@@ -89,6 +91,12 @@ encloseMsg index msg =
     Update posixTime childIndex ->
       Update posixTime (Child index childIndex)
 
+    AddChild name childIndex ->
+      AddChild name (Child index childIndex)
+
+    Remove removeIndex childIndex ->
+      Remove removeIndex (Child index childIndex)
+
 updateState : Msg -> Timer -> ( Timer, Cmd Msg )
 updateState msg timer =
   case timer of
@@ -116,7 +124,7 @@ simpleUpdateState msg timerSpec =
           Final ->
             startTimerSpec timerSpec
 
-          Child _ _ ->
+          _ ->
             default
 
       Stop childIndex ->
@@ -124,7 +132,7 @@ simpleUpdateState msg timerSpec =
           Final ->
             stopTimerSpec timerSpec
 
-          Child _ _ ->
+          _ ->
             default
 
       Reset ->
@@ -135,8 +143,21 @@ simpleUpdateState msg timerSpec =
           Final ->
             updateTimerSpec posixTime timerSpec
 
-          Child _ _ ->
+          _ ->
             default
+
+      AddChild name childIndex ->
+        case childIndex of
+          Final ->
+            ( { timerSpec | groupType = Just <| GroupType False <| List.singleton <| TimerSpec name (Stopped 0) Nothing }
+            , Cmd.none
+            )
+
+          _ ->
+            default
+
+      Remove _ _ ->
+        default
 
 groupUpdateState : Msg -> TimerSpec -> GroupType -> ( TimerSpec, Cmd Msg )
 groupUpdateState msg timerSpec groupType =
@@ -208,6 +229,41 @@ groupUpdateState msg timerSpec groupType =
                   ( ( timerSpec, Cmd.none )
                   , forwardToIndex (Update posixTime) children ( index, nextChildIndex )
                   )
+
+            AddChild name childIndex ->
+              case childIndex of
+                Final ->
+                  ( ( timerSpec, Cmd.none )
+                  , ( children ++ List.singleton (TimerSpec name (Stopped 0) Nothing), [] )
+                  )
+
+                Child index nextChildIndex ->
+                  ( ( timerSpec, Cmd.none)
+                  , forwardToIndex (AddChild name) children ( index, nextChildIndex )
+                  )
+
+            Remove removeIndex childIndex ->
+              case childIndex of
+                Final ->
+                  let
+                    start = List.take removeIndex children
+                    end   = List.drop (removeIndex + 1) children
+                    tempChildren = start ++ end
+                  in
+                    ( if not <| List.any (Timer >> isRunning) tempChildren
+                      then stopTimerSpec timerSpec else ( timerSpec, Cmd.none )
+                    , ( tempChildren, [] )
+                    )
+
+                Child index nextChildIndex ->
+                  let
+                    ( tempChildren, tempCmds ) = forwardToIndex (Remove removeIndex) children ( index, nextChildIndex )
+                  in
+                    ( if not <| List.any (Timer >> isRunning) tempChildren
+                      then stopTimerSpec timerSpec else (timerSpec, Cmd.none )
+                    , ( tempChildren, tempCmds )
+                    )
+
       in
         ( { updatedMain | groupType = Just <| GroupType exclusive updatedChildren }
         , Cmd.batch <| mainCmd :: childCmds
@@ -271,6 +327,10 @@ stopTimerSpec timerSpec =
 resetTimerSpec : TimerSpec -> ( TimerSpec, Cmd Msg )
 resetTimerSpec timerSpec =
     ( { timerSpec | state = Stopped 0 }, Cmd.none )
+
+-- addChildToTimerSpec : String -> TimerSpec ->  (TimerSpec, Cmd Msg )
+-- addChildToTimerSpec string timerSpec =
+
 
 
 -- HELPERS
